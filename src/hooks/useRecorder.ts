@@ -30,6 +30,7 @@ export function useRecorder() {
     }
 
     await setAudioModeAsync({ playsInSilentMode: true });
+    await recorder.prepareToRecordAsync();
     recorder.record();
     setStatus("recording");
   }, [recorder]);
