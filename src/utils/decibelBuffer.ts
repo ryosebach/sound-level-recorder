@@ -46,3 +46,7 @@ export function deleteDecibelRows(fromIso: string, toIso: string): void {
     toIso
   );
 }
+
+export function clearAllDecibelRows(): void {
+  db.runSync("DELETE FROM decibel_log");
+}

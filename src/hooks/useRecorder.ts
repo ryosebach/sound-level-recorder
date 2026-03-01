@@ -16,6 +16,7 @@ import {
   insertDecibel,
   exportDecibelCsv,
   deleteDecibelRows,
+  clearAllDecibelRows,
 } from "@/utils/decibelBuffer";
 
 const AudioModule = requireNativeModule("ExpoAudio");
@@ -200,6 +201,7 @@ export function useRecorder() {
     await recorder.prepareToRecordAsync(RECORDING_OPTIONS);
     recorder.record();
 
+    clearAllDecibelRows();
     segmentStartRef.current = Date.now();
     segmentStartIsoRef.current = new Date().toISOString();
     setSavedFiles([]);
