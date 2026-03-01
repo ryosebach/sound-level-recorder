@@ -2,6 +2,13 @@ import { File, Directory, Paths } from "expo-file-system/next";
 
 const RECORDINGS_DIR = "recordings";
 
+export type RecordingFile = {
+  uri: string;
+  name: string;
+  size: number;
+  createdAt: number | null;
+};
+
 function getRecordingDir(): Directory {
   return new Directory(Paths.document, RECORDINGS_DIR);
 }
@@ -31,4 +38,46 @@ export function moveRecording(sourceUri: string): string {
   const src = new File(sourceUri);
   src.move(dest);
   return dest.uri;
+}
+
+export function listRecordings(): RecordingFile[] {
+  const dir = getRecordingDir();
+  if (!dir.exists) {
+    return [];
+  }
+  const entries = dir.list();
+  const files: RecordingFile[] = [];
+  for (const entry of entries) {
+    if (entry instanceof File) {
+      files.push({
+        uri: entry.uri,
+        name: entry.uri.split("/").pop() ?? entry.uri,
+        size: entry.size ?? 0,
+        createdAt: null,
+      });
+    }
+  }
+  // Sort by name descending (newest first, since names contain timestamps)
+  files.sort((a, b) => b.name.localeCompare(a.name));
+  return files;
+}
+
+export function deleteRecording(uri: string): void {
+  const file = new File(uri);
+  if (file.exists) {
+    file.delete();
+  }
+}
+
+export function deleteAllRecordings(): void {
+  const dir = getRecordingDir();
+  if (!dir.exists) {
+    return;
+  }
+  const entries = dir.list();
+  for (const entry of entries) {
+    if (entry instanceof File) {
+      entry.delete();
+    }
+  }
 }
