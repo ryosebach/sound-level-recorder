@@ -1,12 +1,15 @@
-import { useCallback, useEffect, useState } from "react";
-import { Platform, PermissionsAndroid } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { AppState, Platform, PermissionsAndroid } from "react-native";
 import {
-  useAudioRecorder,
-  useAudioRecorderState,
   RecordingPresets,
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
 } from "expo-audio";
+import type { RecorderState } from "expo-audio";
+import { requireNativeModule } from "expo-modules-core";
+import { moveRecording } from "@/utils/fileManager";
+
+const AudioModule = requireNativeModule("ExpoAudio");
 
 const RECORDING_OPTIONS = {
   ...RecordingPresets.HIGH_QUALITY,
@@ -14,6 +17,7 @@ const RECORDING_OPTIONS = {
 };
 
 const POLLING_INTERVAL_MS = 100;
+const SPLIT_INTERVAL_MS = 3_600_000; // 1 hour
 
 // Approximate offset to convert dBFS to dB SPL.
 // This is a rough estimate; accurate conversion requires per-device calibration.
@@ -29,8 +33,25 @@ async function requestNotificationPermission(): Promise<void> {
   }
 }
 
+function createRecorder() {
+  return new AudioModule.AudioRecorder(RECORDING_OPTIONS);
+}
+
 export function useRecorder() {
   const [status, setStatus] = useState<RecorderStatus>("idle");
+  const [metering, setMetering] = useState<number | undefined>(undefined);
+  const [isRecording, setIsRecording] = useState(false);
+  const [savedFiles, setSavedFiles] = useState<string[]>([]);
+  const [completedDurationMillis, setCompletedDurationMillis] = useState(0);
+  // Wall-clock elapsed time for the current segment, updated by polling / resume
+  const [segmentElapsedMillis, setSegmentElapsedMillis] = useState(0);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recorderRef = useRef<any>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const isSplittingRef = useRef(false);
+  // Wall-clock timestamp when the current segment started recording
+  const segmentStartRef = useRef<number>(0);
 
   // Set audio mode early so the native recorder inherits allowsBackgroundRecording
   useEffect(() => {
@@ -41,8 +62,105 @@ export function useRecorder() {
     });
   }, []);
 
-  const recorder = useAudioRecorder(RECORDING_OPTIONS);
-  const state = useAudioRecorderState(recorder, POLLING_INTERVAL_MS);
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current != null) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }, []);
+
+  const startPolling = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (recorder: any) => {
+      stopPolling();
+      pollingRef.current = setInterval(() => {
+        try {
+          const newState: RecorderState = recorder.getStatus();
+          setMetering(newState.metering);
+          setIsRecording(newState.isRecording);
+          setSegmentElapsedMillis(Date.now() - segmentStartRef.current);
+        } catch {
+          // Recorder may have been released during split
+        }
+      }, POLLING_INTERVAL_MS);
+    },
+    [stopPolling]
+  );
+
+  const splitRecording = useCallback(async () => {
+    if (isSplittingRef.current) return;
+    isSplittingRef.current = true;
+
+    const oldRecorder = recorderRef.current;
+    if (!oldRecorder) {
+      isSplittingRef.current = false;
+      return;
+    }
+
+    stopPolling();
+
+    const segmentDuration = Date.now() - segmentStartRef.current;
+
+    await oldRecorder.stop();
+    const oldUri = oldRecorder.uri;
+
+    // Start new recorder immediately
+    const newRecorder = createRecorder();
+    recorderRef.current = newRecorder;
+    await newRecorder.prepareToRecordAsync(RECORDING_OPTIONS);
+    newRecorder.record();
+    segmentStartRef.current = Date.now();
+    startPolling(newRecorder);
+
+    // Move the old file to permanent storage
+    if (oldUri) {
+      const savedPath = moveRecording(oldUri);
+      setSavedFiles((prev) => [...prev, savedPath]);
+    }
+
+    setCompletedDurationMillis((prev) => prev + segmentDuration);
+    setSegmentElapsedMillis(0);
+    isSplittingRef.current = false;
+  }, [stopPolling, startPolling]);
+
+  // Check if split is needed (wall-clock based)
+  useEffect(() => {
+    if (
+      isRecording &&
+      !isSplittingRef.current &&
+      segmentElapsedMillis >= SPLIT_INTERVAL_MS
+    ) {
+      splitRecording();
+    }
+  }, [segmentElapsedMillis, isRecording, splitRecording]);
+
+  // Restart polling and refresh state when returning to foreground.
+  // setInterval stops firing while the app is in the background;
+  // we recreate it on resume so the UI keeps updating.
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      const recorder = recorderRef.current;
+      if (nextAppState === "active" && recorder) {
+        setSegmentElapsedMillis(Date.now() - segmentStartRef.current);
+        try {
+          const s: RecorderState = recorder.getStatus();
+          setMetering(s.metering);
+          setIsRecording(s.isRecording);
+        } catch {
+          // Recorder may have been released
+        }
+        startPolling(recorder);
+      }
+    });
+    return () => subscription.remove();
+  }, [startPolling]);
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => {
+      stopPolling();
+    };
+  }, [stopPolling]);
 
   const start = useCallback(async () => {
     const { granted } = await requestRecordingPermissionsAsync();
@@ -53,26 +171,50 @@ export function useRecorder() {
 
     await requestNotificationPermission();
 
-    await recorder.prepareToRecordAsync();
+    const recorder = createRecorder();
+    recorderRef.current = recorder;
+    await recorder.prepareToRecordAsync(RECORDING_OPTIONS);
     recorder.record();
+
+    segmentStartRef.current = Date.now();
+    setSavedFiles([]);
+    setCompletedDurationMillis(0);
+    setSegmentElapsedMillis(0);
+    startPolling(recorder);
     setStatus("recording");
-  }, [recorder]);
+  }, [startPolling]);
 
   const stop = useCallback(async () => {
-    await recorder.stop();
+    stopPolling();
+    const recorder = recorderRef.current;
+    if (recorder) {
+      const segmentDuration = Date.now() - segmentStartRef.current;
+      await recorder.stop();
+      const uri = recorder.uri;
+      if (uri) {
+        const savedPath = moveRecording(uri);
+        setSavedFiles((prev) => [...prev, savedPath]);
+      }
+      setCompletedDurationMillis((prev) => prev + segmentDuration);
+      recorderRef.current = null;
+    }
+    setMetering(undefined);
+    setIsRecording(false);
+    setSegmentElapsedMillis(0);
     setStatus("idle");
-  }, [recorder]);
+  }, [stopPolling]);
 
-  const meteringDbfs = state.metering ?? -160;
+  const meteringDbfs = metering ?? -160;
   const dbSpl = Math.max(0, meteringDbfs + DBFS_TO_SPL_OFFSET);
+  const totalDurationMillis = completedDurationMillis + segmentElapsedMillis;
 
   return {
     status,
     metering: meteringDbfs,
     dbSpl,
-    isRecording: state.isRecording,
-    durationMillis: state.durationMillis,
-    uri: recorder.uri,
+    isRecording,
+    totalDurationMillis,
+    savedFiles,
     start,
     stop,
   };

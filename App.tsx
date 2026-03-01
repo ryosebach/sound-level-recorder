@@ -1,13 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { File } from "expo-file-system/next";
 import { StatusBar } from "expo-status-bar";
 import { useRecorder } from "@/hooks/useRecorder";
 
 function formatDuration(ms: number): string {
   const totalSeconds = Math.floor(ms / 1000);
-  const minutes = Math.floor(totalSeconds / 60);
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
   const seconds = totalSeconds % 60;
+  if (hours > 0) {
+    return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+  }
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
@@ -17,13 +20,18 @@ function normalizeDbSpl(dbSpl: number): number {
 }
 
 export default function App() {
-  const { status, dbSpl, isRecording, durationMillis, uri, start, stop } =
-    useRecorder();
+  const {
+    status,
+    dbSpl,
+    isRecording,
+    totalDurationMillis,
+    savedFiles,
+    start,
+    stop,
+  } = useRecorder();
 
   const appState = useRef(AppState.currentState);
   const [appStateLabel, setAppStateLabel] = useState(AppState.currentState);
-
-  const [fileSize, setFileSize] = useState<string | null>(null);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
@@ -32,20 +40,6 @@ export default function App() {
     });
     return () => subscription.remove();
   }, []);
-
-  useEffect(() => {
-    if (uri && !isRecording) {
-      const file = new File(uri);
-      if (file.exists) {
-        const size = file.size ?? 0;
-        const kb = (size / 1024).toFixed(1);
-        const mb = (size / 1024 / 1024).toFixed(2);
-        setFileSize(size > 1024 * 1024 ? `${mb} MB` : `${kb} KB`);
-      }
-    } else {
-      setFileSize(null);
-    }
-  }, [uri, isRecording]);
 
   const barWidth = normalizeDbSpl(dbSpl) * 100;
 
@@ -69,7 +63,7 @@ export default function App() {
         </View>
       </View>
 
-      <Text style={styles.duration}>{formatDuration(durationMillis)}</Text>
+      <Text style={styles.duration}>{formatDuration(totalDurationMillis)}</Text>
 
       <TouchableOpacity
         style={[styles.button, isRecording && styles.buttonStop]}
@@ -80,11 +74,10 @@ export default function App() {
         </Text>
       </TouchableOpacity>
 
-      {uri && !isRecording && (
-        <>
-          <Text style={styles.uri}>保存先: {uri}</Text>
-          {fileSize && <Text style={styles.uri}>ファイルサイズ: {fileSize}</Text>}
-        </>
+      {savedFiles.length > 0 && (
+        <Text style={styles.uri}>
+          {savedFiles.length} file{savedFiles.length !== 1 ? "s" : ""} saved
+        </Text>
       )}
 
       <StatusBar style="auto" />
