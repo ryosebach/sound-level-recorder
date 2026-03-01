@@ -7,7 +7,16 @@ import {
 } from "expo-audio";
 import type { RecorderState } from "expo-audio";
 import { requireNativeModule } from "expo-modules-core";
-import { moveRecording } from "@/utils/fileManager";
+import {
+  moveRecording,
+  getRecordingUri,
+  writeDecibelCsv,
+} from "@/utils/fileManager";
+import {
+  insertDecibel,
+  exportDecibelCsv,
+  deleteDecibelRows,
+} from "@/utils/decibelBuffer";
 
 const AudioModule = requireNativeModule("ExpoAudio");
 
@@ -52,6 +61,8 @@ export function useRecorder() {
   const isSplittingRef = useRef(false);
   // Wall-clock timestamp when the current segment started recording
   const segmentStartRef = useRef<number>(0);
+  // ISO timestamp when the current segment started (for SQLite range queries)
+  const segmentStartIsoRef = useRef<string>("");
 
   // Set audio mode early so the native recorder inherits allowsBackgroundRecording
   useEffect(() => {
@@ -75,10 +86,16 @@ export function useRecorder() {
       stopPolling();
       pollingRef.current = setInterval(() => {
         try {
+          const now = Date.now();
           const newState: RecorderState = recorder.getStatus();
           setMetering(newState.metering);
           setIsRecording(newState.isRecording);
-          setSegmentElapsedMillis(Date.now() - segmentStartRef.current);
+          setSegmentElapsedMillis(now - segmentStartRef.current);
+          if (newState.metering != null) {
+            const isoString = new Date(now).toISOString();
+            const offsetMs = now - segmentStartRef.current;
+            insertDecibel(isoString, offsetMs, newState.metering);
+          }
         } catch {
           // Recorder may have been released during split
         }
@@ -100,6 +117,8 @@ export function useRecorder() {
     stopPolling();
 
     const segmentDuration = Date.now() - segmentStartRef.current;
+    const fromIso = segmentStartIsoRef.current;
+    const toIso = new Date().toISOString();
 
     await oldRecorder.stop();
     const oldUri = oldRecorder.uri;
@@ -110,12 +129,17 @@ export function useRecorder() {
     await newRecorder.prepareToRecordAsync(RECORDING_OPTIONS);
     newRecorder.record();
     segmentStartRef.current = Date.now();
+    segmentStartIsoRef.current = new Date().toISOString();
     startPolling(newRecorder);
 
-    // Move the old file to permanent storage
+    // Move the old file and export CSV
     if (oldUri) {
-      const savedPath = moveRecording(oldUri);
-      setSavedFiles((prev) => [...prev, savedPath]);
+      const audioFilename = moveRecording(oldUri);
+      setSavedFiles((prev) => [...prev, getRecordingUri(audioFilename)]);
+
+      const csvContent = exportDecibelCsv(fromIso, toIso);
+      writeDecibelCsv(csvContent, audioFilename);
+      deleteDecibelRows(fromIso, toIso);
     }
 
     setCompletedDurationMillis((prev) => prev + segmentDuration);
@@ -177,6 +201,7 @@ export function useRecorder() {
     recorder.record();
 
     segmentStartRef.current = Date.now();
+    segmentStartIsoRef.current = new Date().toISOString();
     setSavedFiles([]);
     setCompletedDurationMillis(0);
     setSegmentElapsedMillis(0);
@@ -189,11 +214,18 @@ export function useRecorder() {
     const recorder = recorderRef.current;
     if (recorder) {
       const segmentDuration = Date.now() - segmentStartRef.current;
+      const fromIso = segmentStartIsoRef.current;
+      const toIso = new Date().toISOString();
+
       await recorder.stop();
       const uri = recorder.uri;
       if (uri) {
-        const savedPath = moveRecording(uri);
-        setSavedFiles((prev) => [...prev, savedPath]);
+        const audioFilename = moveRecording(uri);
+        setSavedFiles((prev) => [...prev, getRecordingUri(audioFilename)]);
+
+        const csvContent = exportDecibelCsv(fromIso, toIso);
+        writeDecibelCsv(csvContent, audioFilename);
+        deleteDecibelRows(fromIso, toIso);
       }
       setCompletedDurationMillis((prev) => prev + segmentDuration);
       recorderRef.current = null;
