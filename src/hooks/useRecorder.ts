@@ -1,4 +1,5 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Platform, PermissionsAndroid } from "react-native";
 import {
   useAudioRecorder,
   useAudioRecorderState,
@@ -16,8 +17,25 @@ const POLLING_INTERVAL_MS = 100;
 
 export type RecorderStatus = "idle" | "recording" | "permission_denied";
 
+async function requestNotificationPermission(): Promise<void> {
+  if (Platform.OS === "android" && Platform.Version >= 33) {
+    await PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
+    );
+  }
+}
+
 export function useRecorder() {
   const [status, setStatus] = useState<RecorderStatus>("idle");
+
+  // Set audio mode early so the native recorder inherits allowsBackgroundRecording
+  useEffect(() => {
+    setAudioModeAsync({
+      playsInSilentMode: true,
+      allowsRecording: true,
+      allowsBackgroundRecording: true,
+    });
+  }, []);
 
   const recorder = useAudioRecorder(RECORDING_OPTIONS);
   const state = useAudioRecorderState(recorder, POLLING_INTERVAL_MS);
@@ -29,7 +47,8 @@ export function useRecorder() {
       return;
     }
 
-    await setAudioModeAsync({ playsInSilentMode: true });
+    await requestNotificationPermission();
+
     await recorder.prepareToRecordAsync();
     recorder.record();
     setStatus("recording");

@@ -1,5 +1,7 @@
+import { useEffect, useRef, useState } from "react";
+import { AppState, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { File } from "expo-file-system/next";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useRecorder } from "@/hooks/useRecorder";
 
 function formatDuration(ms: number): string {
@@ -18,11 +20,40 @@ export default function App() {
   const { status, metering, isRecording, durationMillis, uri, start, stop } =
     useRecorder();
 
+  const appState = useRef(AppState.currentState);
+  const [appStateLabel, setAppStateLabel] = useState(AppState.currentState);
+
+  const [fileSize, setFileSize] = useState<string | null>(null);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      appState.current = nextAppState;
+      setAppStateLabel(nextAppState);
+    });
+    return () => subscription.remove();
+  }, []);
+
+  useEffect(() => {
+    if (uri && !isRecording) {
+      const file = new File(uri);
+      if (file.exists) {
+        const size = file.size ?? 0;
+        const kb = (size / 1024).toFixed(1);
+        const mb = (size / 1024 / 1024).toFixed(2);
+        setFileSize(size > 1024 * 1024 ? `${mb} MB` : `${kb} KB`);
+      }
+    } else {
+      setFileSize(null);
+    }
+  }, [uri, isRecording]);
+
   const barWidth = normalizeDb(metering) * 100;
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Recording PoC</Text>
+
+      <Text style={styles.appState}>AppState: {appStateLabel}</Text>
 
       {status === "permission_denied" && (
         <Text style={styles.warning}>
@@ -49,7 +80,10 @@ export default function App() {
       </TouchableOpacity>
 
       {uri && !isRecording && (
-        <Text style={styles.uri}>保存先: {uri}</Text>
+        <>
+          <Text style={styles.uri}>保存先: {uri}</Text>
+          {fileSize && <Text style={styles.uri}>ファイルサイズ: {fileSize}</Text>}
+        </>
       )}
 
       <StatusBar style="auto" />
@@ -124,5 +158,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#999",
     textAlign: "center",
+  },
+  appState: {
+    fontSize: 14,
+    color: "#888",
+    marginBottom: 16,
   },
 });
