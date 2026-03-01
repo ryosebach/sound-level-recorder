@@ -8,6 +8,7 @@ import {
 import { usePlaybackData } from "@/hooks/usePlaybackData";
 import { formatDuration } from "@/utils/formatDuration";
 import DbGraph from "@/components/DbGraph";
+import colors from "@/theme/colors";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
 
@@ -103,6 +104,7 @@ export default function PlaybackScreen({ route }: Props) {
               currentTimeMs={currentTimeMs}
               viewportWidth={viewportWidth}
               height={250}
+              startTimestamp={playbackData.startTimestamp}
               onSeek={handleSeek}
             />
           )}
@@ -126,9 +128,9 @@ export default function PlaybackScreen({ route }: Props) {
           onSlidingStart={handleSlidingStart}
           onValueChange={handleSliderChange}
           onSlidingComplete={handleSlidingComplete}
-          minimumTrackTintColor="#3182ce"
-          maximumTrackTintColor="#e2e8f0"
-          thumbTintColor="#3182ce"
+          minimumTrackTintColor={colors.accentBlue}
+          maximumTrackTintColor={colors.borderStrong}
+          thumbTintColor={colors.accentBlue}
         />
 
         <TouchableOpacity
@@ -147,12 +149,12 @@ export default function PlaybackScreen({ route }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: colors.bgPrimary,
   },
   fileName: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#2d3748",
+    color: colors.textPrimary,
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 8,
@@ -160,7 +162,7 @@ const styles = StyleSheet.create({
   graphContainer: {
     flex: 1,
     marginHorizontal: 16,
-    backgroundColor: "#f7fafc",
+    backgroundColor: colors.bgSecondary,
     borderRadius: 8,
     overflow: "hidden",
     justifyContent: "center",
@@ -172,11 +174,11 @@ const styles = StyleSheet.create({
   },
   placeholderText: {
     fontSize: 14,
-    color: "#a0aec0",
+    color: colors.textMuted,
   },
   errorText: {
     fontSize: 14,
-    color: "#e53e3e",
+    color: colors.accentRed,
   },
   controls: {
     paddingHorizontal: 16,
@@ -191,7 +193,7 @@ const styles = StyleSheet.create({
   time: {
     fontSize: 14,
     fontVariant: ["tabular-nums"],
-    color: "#4a5568",
+    color: colors.textSecondary,
   },
   slider: {
     width: "100%",
@@ -199,14 +201,14 @@ const styles = StyleSheet.create({
   },
   playButton: {
     alignSelf: "center",
-    backgroundColor: "#3182ce",
+    backgroundColor: colors.accentBlue,
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 12,
     marginTop: 8,
   },
   playButtonText: {
-    color: "#fff",
+    color: colors.onAccent,
     fontSize: 18,
     fontWeight: "bold",
   },

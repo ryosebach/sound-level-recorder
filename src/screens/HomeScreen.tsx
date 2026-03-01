@@ -3,6 +3,7 @@ import { AppState, StyleSheet, Text, TouchableOpacity, View } from "react-native
 import { StatusBar } from "expo-status-bar";
 import { useRecorder } from "@/hooks/useRecorder";
 import { formatDuration } from "@/utils/formatDuration";
+import colors from "@/theme/colors";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
 
@@ -80,7 +81,7 @@ export default function HomeScreen({ navigation }: Props) {
         <Text style={styles.navButtonText}>ファイル一覧</Text>
       </TouchableOpacity>
 
-      <StatusBar style="auto" />
+      <StatusBar style="light" />
     </View>
   );
 }
@@ -88,7 +89,7 @@ export default function HomeScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: colors.bgPrimary,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
@@ -97,9 +98,10 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     marginBottom: 32,
+    color: colors.textPrimary,
   },
   warning: {
-    color: "#e53e3e",
+    color: colors.accentRed,
     fontSize: 14,
     marginBottom: 16,
     textAlign: "center",
@@ -114,65 +116,66 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
     fontVariant: ["tabular-nums"],
     marginBottom: 4,
+    color: colors.textPrimary,
   },
   dbLabel: {
     fontSize: 12,
-    color: "#999",
+    color: colors.textTertiary,
     marginBottom: 12,
   },
   barBackground: {
     width: "100%",
     height: 20,
-    backgroundColor: "#e2e8f0",
+    backgroundColor: colors.borderStrong,
     borderRadius: 10,
     overflow: "hidden",
   },
   barFill: {
     height: "100%",
-    backgroundColor: "#38a169",
+    backgroundColor: colors.accentGreen,
     borderRadius: 10,
   },
   duration: {
     fontSize: 20,
     fontVariant: ["tabular-nums"],
-    color: "#666",
+    color: colors.textSecondary,
     marginBottom: 24,
   },
   button: {
-    backgroundColor: "#3182ce",
+    backgroundColor: colors.accentBlue,
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 12,
     marginBottom: 16,
   },
   buttonStop: {
-    backgroundColor: "#e53e3e",
+    backgroundColor: colors.accentRed,
   },
   buttonText: {
-    color: "#fff",
+    color: colors.onAccent,
     fontSize: 18,
     fontWeight: "bold",
   },
   uri: {
     fontSize: 12,
-    color: "#999",
+    color: colors.textTertiary,
     textAlign: "center",
     marginBottom: 16,
   },
   appState: {
     fontSize: 14,
-    color: "#888",
+    color: colors.textTertiary,
     marginBottom: 16,
   },
   navButton: {
-    backgroundColor: "#805ad5",
+    backgroundColor: colors.accentPurple,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
     marginTop: 8,
   },
   navButtonText: {
-    color: "#fff",
+    color: colors.onAccent,
     fontSize: 16,
     fontWeight: "bold",
   },

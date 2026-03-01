@@ -16,6 +16,7 @@ import {
   deleteAllRecordings,
   type RecordingFile,
 } from "@/utils/fileManager";
+import colors from "@/theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Recordings">;
 
@@ -169,7 +170,7 @@ export default function RecordingsScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: colors.bgPrimary,
   },
   toolbar: {
     flexDirection: "row",
@@ -178,7 +179,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 8,
     borderBottomWidth: 1,
-    borderBottomColor: "#e2e8f0",
+    borderBottomColor: colors.borderStrong,
   },
   toolbarButton: {
     paddingHorizontal: 16,
@@ -186,16 +187,16 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   deleteButton: {
-    backgroundColor: "#e53e3e",
+    backgroundColor: colors.accentRed,
   },
   deleteAllButton: {
-    backgroundColor: "#dd6b20",
+    backgroundColor: colors.accentOrange,
   },
   buttonDisabled: {
     opacity: 0.4,
   },
   toolbarButtonText: {
-    color: "#fff",
+    color: colors.onAccent,
     fontSize: 14,
     fontWeight: "bold",
   },
@@ -208,17 +209,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: "#f0f0f0",
+    borderBottomColor: colors.borderSubtle,
   },
   rowSelected: {
-    backgroundColor: "#ebf8ff",
+    backgroundColor: colors.highlight,
   },
   checkbox: {
     width: 24,
     height: 24,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: "#a0aec0",
+    borderColor: colors.textMuted,
     marginRight: 12,
     alignItems: "center",
     justifyContent: "center",
@@ -227,7 +228,7 @@ const styles = StyleSheet.create({
     width: 14,
     height: 14,
     borderRadius: 2,
-    backgroundColor: "#3182ce",
+    backgroundColor: colors.accentBlue,
   },
   fileInfo: {
     flex: 1,
@@ -235,12 +236,12 @@ const styles = StyleSheet.create({
   fileName: {
     fontSize: 14,
     fontWeight: "500",
-    color: "#2d3748",
+    color: colors.textPrimary,
     marginBottom: 2,
   },
   fileMeta: {
     fontSize: 12,
-    color: "#a0aec0",
+    color: colors.textMuted,
   },
   listFooter: {
     alignItems: "center",
@@ -250,7 +251,7 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "#cbd5e0",
+    backgroundColor: colors.textMuted,
   },
   emptyContainer: {
     flex: 1,
@@ -259,6 +260,6 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 16,
-    color: "#a0aec0",
+    color: colors.textMuted,
   },
 });

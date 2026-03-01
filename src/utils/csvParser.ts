@@ -1,4 +1,8 @@
-export type DecibelPoint = { offsetMs: number; dbSpl: number };
+export type DecibelPoint = {
+  offsetMs: number;
+  dbSpl: number;
+  timestamp: string;
+};
 
 export function parseCsv(content: string): DecibelPoint[] {
   const lines = content.split("\n");
@@ -8,10 +12,11 @@ export function parseCsv(content: string): DecibelPoint[] {
     if (line === "") continue;
     const parts = line.split(",");
     // CSV format: timestamp, offset_ms, db (dBFS)
+    const timestamp = parts[0];
     const offsetMs = Number(parts[1]);
     const dbfs = Number(parts[2]);
-    if (Number.isNaN(offsetMs) || Number.isNaN(dbfs)) continue;
-    points.push({ offsetMs, dbSpl: Math.max(0, dbfs + 100) });
+    if (!timestamp || Number.isNaN(offsetMs) || Number.isNaN(dbfs)) continue;
+    points.push({ timestamp, offsetMs, dbSpl: Math.max(0, dbfs + 100) });
   }
   return points;
 }
