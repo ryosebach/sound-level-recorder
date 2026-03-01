@@ -1,0 +1,51 @@
+{
+  "expo": {
+    "name": "Sound Level Recorder",
+    "slug": "sound-level-recorder",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.ryosebach.soundlevelrecorder",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "騒音レベルの計測と録音のためにマイクを使用します",
+        "UIBackgroundModes": ["audio"]
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "package": "com.ryosebach.soundlevelrecorder",
+      "permissions": [
+        "RECORD_AUDIO",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_MICROPHONE",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "騒音レベルの計測と録音のためにマイクを使用します",
+          "enableBackgroundRecording": true
+        }
+      ],
+      "expo-sqlite"
+    ]
+  }
+}
