@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import * as FileSystem from "expo-file-system";
+import { File } from "expo-file-system/next";
 import { StatusBar } from "expo-status-bar";
 import { useRecorder } from "@/hooks/useRecorder";
 
@@ -35,13 +35,13 @@ export default function App() {
 
   useEffect(() => {
     if (uri && !isRecording) {
-      FileSystem.getInfoAsync(uri).then((info) => {
-        if (info.exists && "size" in info) {
-          const kb = (info.size / 1024).toFixed(1);
-          const mb = (info.size / 1024 / 1024).toFixed(2);
-          setFileSize(info.size > 1024 * 1024 ? `${mb} MB` : `${kb} KB`);
-        }
-      });
+      const file = new File(uri);
+      if (file.exists) {
+        const size = file.size ?? 0;
+        const kb = (size / 1024).toFixed(1);
+        const mb = (size / 1024 / 1024).toFixed(2);
+        setFileSize(size > 1024 * 1024 ? `${mb} MB` : `${kb} KB`);
+      }
     } else {
       setFileSize(null);
     }
