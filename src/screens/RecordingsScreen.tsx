@@ -8,6 +8,8 @@ import {
   View,
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../../App";
 import {
   listRecordings,
   deleteRecording,
@@ -15,13 +17,15 @@ import {
   type RecordingFile,
 } from "@/utils/fileManager";
 
+type Props = NativeStackScreenProps<RootStackParamList, "Recordings">;
+
 function formatFileSize(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export default function RecordingsScreen() {
+export default function RecordingsScreen({ navigation }: Props) {
   const [files, setFiles] = useState<RecordingFile[]>([]);
   const [selectedUris, setSelectedUris] = useState<Set<string>>(new Set());
 
@@ -84,8 +88,8 @@ export default function RecordingsScreen() {
     );
   };
 
-  const handleRowPress = (_item: RecordingFile) => {
-    // TODO: navigate to playback screen
+  const handleRowPress = (item: RecordingFile) => {
+    navigation.navigate("Playback", { uri: item.uri, name: item.name });
   };
 
   const renderItem = ({ item }: { item: RecordingFile }) => {
