@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { AppState, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import * as FileSystem from "expo-file-system";
 import { StatusBar } from "expo-status-bar";
 import { useRecorder } from "@/hooks/useRecorder";
 
@@ -22,6 +23,8 @@ export default function App() {
   const appState = useRef(AppState.currentState);
   const [appStateLabel, setAppStateLabel] = useState(AppState.currentState);
 
+  const [fileSize, setFileSize] = useState<string | null>(null);
+
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       appState.current = nextAppState;
@@ -29,6 +32,20 @@ export default function App() {
     });
     return () => subscription.remove();
   }, []);
+
+  useEffect(() => {
+    if (uri && !isRecording) {
+      FileSystem.getInfoAsync(uri).then((info) => {
+        if (info.exists && "size" in info) {
+          const kb = (info.size / 1024).toFixed(1);
+          const mb = (info.size / 1024 / 1024).toFixed(2);
+          setFileSize(info.size > 1024 * 1024 ? `${mb} MB` : `${kb} KB`);
+        }
+      });
+    } else {
+      setFileSize(null);
+    }
+  }, [uri, isRecording]);
 
   const barWidth = normalizeDb(metering) * 100;
 
@@ -63,7 +80,10 @@ export default function App() {
       </TouchableOpacity>
 
       {uri && !isRecording && (
-        <Text style={styles.uri}>保存先: {uri}</Text>
+        <>
+          <Text style={styles.uri}>保存先: {uri}</Text>
+          {fileSize && <Text style={styles.uri}>ファイルサイズ: {fileSize}</Text>}
+        </>
       )}
 
       <StatusBar style="auto" />
