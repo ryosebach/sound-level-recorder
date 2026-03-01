@@ -1,5 +1,6 @@
+import { useEffect, useRef, useState } from "react";
+import { AppState, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useRecorder } from "@/hooks/useRecorder";
 
 function formatDuration(ms: number): string {
@@ -18,11 +19,24 @@ export default function App() {
   const { status, metering, isRecording, durationMillis, uri, start, stop } =
     useRecorder();
 
+  const appState = useRef(AppState.currentState);
+  const [appStateLabel, setAppStateLabel] = useState(AppState.currentState);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      appState.current = nextAppState;
+      setAppStateLabel(nextAppState);
+    });
+    return () => subscription.remove();
+  }, []);
+
   const barWidth = normalizeDb(metering) * 100;
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Recording PoC</Text>
+
+      <Text style={styles.appState}>AppState: {appStateLabel}</Text>
 
       {status === "permission_denied" && (
         <Text style={styles.warning}>
@@ -124,5 +138,10 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#999",
     textAlign: "center",
+  },
+  appState: {
+    fontSize: 14,
+    color: "#888",
+    marginBottom: 16,
   },
 });
