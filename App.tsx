@@ -11,13 +11,13 @@ function formatDuration(ms: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function normalizeDb(db: number): number {
-  // dB range: -160 ~ 0, normalize to 0 ~ 1
-  return Math.max(0, Math.min(1, (db + 160) / 160));
+function normalizeDbSpl(dbSpl: number): number {
+  // dB SPL range: 0 ~ 130, normalize to 0 ~ 1
+  return Math.max(0, Math.min(1, dbSpl / 130));
 }
 
 export default function App() {
-  const { status, metering, isRecording, durationMillis, uri, start, stop } =
+  const { status, dbSpl, isRecording, durationMillis, uri, start, stop } =
     useRecorder();
 
   const appState = useRef(AppState.currentState);
@@ -47,7 +47,7 @@ export default function App() {
     }
   }, [uri, isRecording]);
 
-  const barWidth = normalizeDb(metering) * 100;
+  const barWidth = normalizeDbSpl(dbSpl) * 100;
 
   return (
     <View style={styles.container}>
@@ -62,7 +62,8 @@ export default function App() {
       )}
 
       <View style={styles.meterContainer}>
-        <Text style={styles.dbValue}>{metering.toFixed(1)} dB</Text>
+        <Text style={styles.dbValue}>{dbSpl.toFixed(1)} dB</Text>
+        <Text style={styles.dbLabel}>approx. SPL</Text>
         <View style={styles.barBackground}>
           <View style={[styles.barFill, { width: `${barWidth}%` }]} />
         </View>
@@ -119,6 +120,11 @@ const styles = StyleSheet.create({
     fontSize: 48,
     fontWeight: "bold",
     fontVariant: ["tabular-nums"],
+    marginBottom: 4,
+  },
+  dbLabel: {
+    fontSize: 12,
+    color: "#999",
     marginBottom: 12,
   },
   barBackground: {

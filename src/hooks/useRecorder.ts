@@ -15,6 +15,10 @@ const RECORDING_OPTIONS = {
 
 const POLLING_INTERVAL_MS = 100;
 
+// Approximate offset to convert dBFS to dB SPL.
+// This is a rough estimate; accurate conversion requires per-device calibration.
+const DBFS_TO_SPL_OFFSET = 100;
+
 export type RecorderStatus = "idle" | "recording" | "permission_denied";
 
 async function requestNotificationPermission(): Promise<void> {
@@ -59,9 +63,13 @@ export function useRecorder() {
     setStatus("idle");
   }, [recorder]);
 
+  const meteringDbfs = state.metering ?? -160;
+  const dbSpl = Math.max(0, meteringDbfs + DBFS_TO_SPL_OFFSET);
+
   return {
     status,
-    metering: state.metering ?? -160,
+    metering: meteringDbfs,
+    dbSpl,
     isRecording: state.isRecording,
     durationMillis: state.durationMillis,
     uri: recorder.uri,
