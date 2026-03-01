@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppState, Platform, PermissionsAndroid } from "react-native";
 import {
-  RecordingPresets,
+  IOSOutputFormat,
+  AudioQuality,
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
 } from "expo-audio";
@@ -22,8 +23,22 @@ import {
 const AudioModule = requireNativeModule("ExpoAudio");
 
 const RECORDING_OPTIONS = {
-  ...RecordingPresets.HIGH_QUALITY,
+  extension: ".m4a",
+  sampleRate: 16000,
+  numberOfChannels: 1,
+  bitRate: 32000,
   isMeteringEnabled: true,
+  android: {
+    outputFormat: "mpeg4",
+    audioEncoder: "aac",
+  },
+  ios: {
+    outputFormat: IOSOutputFormat.MPEG4AAC,
+    audioQuality: AudioQuality.MEDIUM,
+    linearPCMBitDepth: 16,
+    linearPCMIsBigEndian: false,
+    linearPCMIsFloat: false,
+  },
 };
 
 const POLLING_INTERVAL_MS = 100;
