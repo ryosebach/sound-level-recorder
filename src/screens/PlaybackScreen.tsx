@@ -29,7 +29,8 @@ export default function PlaybackScreen({ route }: Props) {
 
   // Downsample to half of total graph width (1min = viewportWidth)
   const durationMin = Math.max(durationMs / 60000, 1);
-  const totalGraphWidth = viewportWidth * durationMin;
+  const MAX_GRAPH_WIDTH = 10_000;
+  const totalGraphWidth = Math.min(viewportWidth * durationMin, MAX_GRAPH_WIDTH);
   const maxPoints = Math.max(300, Math.round(totalGraphWidth / 2));
 
   const playbackData = usePlaybackData(uri, maxPoints);

@@ -11,7 +11,27 @@ db.execSync(
     db REAL NOT NULL
   )`
 );
+db.execSync(
+  "CREATE INDEX IF NOT EXISTS idx_decibel_log_ts ON decibel_log(ts)"
+);
 
+export function insertDecibelBatch(
+  rows: { ts: string; offsetMs: number; db: number }[]
+): void {
+  if (rows.length === 0) return;
+  db.withTransactionSync(() => {
+    for (const row of rows) {
+      db.runSync(
+        "INSERT INTO decibel_log (ts, offset_ms, db) VALUES (?, ?, ?)",
+        row.ts,
+        row.offsetMs,
+        row.db
+      );
+    }
+  });
+}
+
+/** @deprecated Use insertDecibelBatch for better performance */
 export function insertDecibel(
   timestampIso: string,
   offsetMs: number,

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
+  AppState,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -48,6 +49,19 @@ export default function HomeScreen({ navigation }: Props) {
 
   const [livePoints, setLivePoints] = useState<DecibelPoint[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval>>(undefined);
+  // Track when the graph was last reset (app resume) to avoid querying old data
+  const graphOriginRef = useRef<number>(Date.now());
+
+  // Reset graph on foreground resume to avoid heavy SQLite queries
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active") {
+        graphOriginRef.current = Date.now();
+        setLivePoints([]);
+      }
+    });
+    return () => subscription.remove();
+  }, []);
 
   useEffect(() => {
     if (!isRecording) {
@@ -59,7 +73,11 @@ export default function HomeScreen({ navigation }: Props) {
     const maxPoints = Math.floor(graphWidth / 2);
 
     const poll = () => {
-      const rows = getRecentDecibels(LIVE_WINDOW_MS);
+      // Only query data since the graph was reset (or up to LIVE_WINDOW_MS)
+      const elapsed = Date.now() - graphOriginRef.current;
+      const windowMs = Math.min(LIVE_WINDOW_MS, elapsed);
+      if (windowMs < 500) return; // too early, skip
+      const rows = getRecentDecibels(windowMs);
       const points: DecibelPoint[] = rows.map((r) => ({
         timestamp: r.ts,
         offsetMs: r.offset_ms,
@@ -68,9 +86,14 @@ export default function HomeScreen({ navigation }: Props) {
       setLivePoints(downsample(points, maxPoints));
     };
 
-    poll();
-    timerRef.current = setInterval(poll, 1000);
+    // Delay start to avoid blocking UI on sleep resume
+    const delayId = setTimeout(() => {
+      poll();
+      timerRef.current = setInterval(poll, 1000);
+    }, 500);
+
     return () => {
+      clearTimeout(delayId);
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [isRecording, screenWidth]);

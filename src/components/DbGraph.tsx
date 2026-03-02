@@ -69,7 +69,13 @@ export default function DbGraph({
 
   // 1 minute = plotWidth
   const durationMin = Math.max(durationMs / 60000, 1);
-  const totalPlotWidth = plotWidth * durationMin;
+
+  // Android Canvas bitmap limit ≈ 100MB; keep well under to avoid OOM
+  const MAX_BITMAP_BYTES = 10_000_000; // 10MB — conservative for low-spec devices
+  const maxPlotWidth = Math.floor(MAX_BITMAP_BYTES / (height * 4)) - MARGIN_LEFT;
+
+  const rawTotalPlotWidth = plotWidth * durationMin;
+  const totalPlotWidth = Math.min(rawTotalPlotWidth, maxPlotWidth);
   const totalSvgWidth = MARGIN_LEFT + totalPlotWidth;
 
   // Convert dB value to Y coordinate within the plot area
@@ -112,8 +118,8 @@ export default function DbGraph({
 
   // --- Vertical grid lines (time) ---
   const timeGridLines = useMemo(() => {
-    // ms per viewport (plotWidth pixels)
-    const msPerViewport = durationMs / durationMin;
+    // ms per viewport (plotWidth pixels) — based on actual (possibly capped) scale
+    const msPerViewport = (plotWidth / totalPlotWidth) * durationMs;
     const interval = pickTimeInterval(msPerViewport);
     const lines: { ms: number; x: number }[] = [];
     for (let t = 0; t <= durationMs; t += interval) {
