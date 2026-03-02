@@ -47,6 +47,16 @@ export function deleteDecibelRows(fromIso: string, toIso: string): void {
   );
 }
 
+export function getRecentDecibels(
+  limitMs: number
+): { offset_ms: number; db: number; ts: string }[] {
+  const sinceIso = new Date(Date.now() - limitMs).toISOString();
+  return db.getAllSync<{ offset_ms: number; db: number; ts: string }>(
+    "SELECT ts, offset_ms, db FROM decibel_log WHERE ts >= ? ORDER BY ts",
+    sinceIso
+  );
+}
+
 export function clearAllDecibelRows(): void {
   db.runSync("DELETE FROM decibel_log");
 }

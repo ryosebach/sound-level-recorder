@@ -46,7 +46,6 @@ const RECORDING_OPTIONS = {
 };
 
 const POLLING_INTERVAL_MS = 100;
-const SPLIT_INTERVAL_MS = 21_600_000; // 6 hours
 
 // Approximate offset to convert dBFS to dB SPL.
 // This is a rough estimate; accurate conversion requires per-device calibration.
@@ -66,7 +65,7 @@ function createRecorder() {
   return new AudioModule.AudioRecorder(RECORDING_OPTIONS);
 }
 
-export function useRecorder() {
+export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
   const [status, setStatus] = useState<RecorderStatus>("idle");
   const [metering, setMetering] = useState<number | undefined>(undefined);
   const [isRecording, setIsRecording] = useState(false);
@@ -117,18 +116,8 @@ export function useRecorder() {
             const offsetMs = now - segmentStartRef.current;
             insertDecibel(isoString, offsetMs, newState.metering);
           }
-
-          // Log every second in background for debugging
-          if (AppState.currentState === "background") {
-            const elapsed = now - segmentStartRef.current;
-            if (Math.floor(elapsed / 1000) !== Math.floor((elapsed - POLLING_INTERVAL_MS) / 1000)) {
-              console.log(
-                `[BG_METER] elapsed=${Math.floor(elapsed / 1000)}s isRecording=${newState.isRecording} metering=${newState.metering?.toFixed(1) ?? "null"}`
-              );
-            }
-          }
-        } catch (e) {
-          console.log(`[BG_METER] polling error: ${e}`);
+        } catch {
+          // Polling may fail if recorder was released
         }
       }, POLLING_INTERVAL_MS);
     },
@@ -172,7 +161,6 @@ export function useRecorder() {
       writeDecibelCsv(csvContent, audioFilename);
       deleteDecibelRows(fromIso, toIso);
 
-      console.log(`[BG_METER] split: ${audioFilename} duration=${segmentDuration}ms`);
     }
 
     setCompletedDurationMillis((prev) => prev + segmentDuration);
@@ -185,11 +173,12 @@ export function useRecorder() {
     if (
       isRecording &&
       !isSplittingRef.current &&
-      segmentElapsedMillis >= SPLIT_INTERVAL_MS
+      splitIntervalMs !== null &&
+      segmentElapsedMillis >= splitIntervalMs
     ) {
       splitRecording();
     }
-  }, [segmentElapsedMillis, isRecording, splitRecording]);
+  }, [segmentElapsedMillis, isRecording, splitIntervalMs, splitRecording]);
 
   // Restart polling and refresh state when returning to foreground.
   // setInterval may stop firing while the app is in the background on iOS;
@@ -198,7 +187,6 @@ export function useRecorder() {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       const recorder = recorderRef.current;
       if (nextAppState === "active" && recorder) {
-        console.log("[BG_METER] resumed foreground");
         setSegmentElapsedMillis(Date.now() - segmentStartRef.current);
         try {
           const s: RecorderState = recorder.getStatus();
