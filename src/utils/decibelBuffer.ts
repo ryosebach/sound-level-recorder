@@ -45,8 +45,8 @@ export function insertDecibel(
   );
 }
 
-export function exportDecibelCsv(fromIso: string, toIso: string): string {
-  const rows = db.getAllSync<{ ts: string; offset_ms: number; db: number }>(
+export async function exportDecibelCsv(fromIso: string, toIso: string): Promise<string> {
+  const rows = await db.getAllAsync<{ ts: string; offset_ms: number; db: number }>(
     "SELECT ts, offset_ms, db FROM decibel_log WHERE ts >= ? AND ts <= ? ORDER BY ts",
     fromIso,
     toIso
@@ -59,8 +59,8 @@ export function exportDecibelCsv(fromIso: string, toIso: string): string {
   return lines.join("\n") + "\n";
 }
 
-export function deleteDecibelRows(fromIso: string, toIso: string): void {
-  db.runSync(
+export async function deleteDecibelRows(fromIso: string, toIso: string): Promise<void> {
+  await db.runAsync(
     "DELETE FROM decibel_log WHERE ts >= ? AND ts <= ?",
     fromIso,
     toIso

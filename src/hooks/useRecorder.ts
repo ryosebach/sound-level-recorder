@@ -196,15 +196,16 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
     startPolling(newRecorder);
     startFlushing();
 
-    // Move the old file and export CSV
+    // Move the old file and export CSV — runs async after recording resumes
     if (oldUri) {
       const audioFilename = moveRecording(oldUri);
       setSavedFiles((prev) => [...prev, getRecordingUri(audioFilename)]);
 
-      const csvContent = exportDecibelCsv(fromIso, toIso);
-      writeDecibelCsv(csvContent, audioFilename);
-      deleteDecibelRows(fromIso, toIso);
-
+      // Non-blocking: CSV export + cleanup runs in background
+      exportDecibelCsv(fromIso, toIso).then((csvContent) => {
+        writeDecibelCsv(csvContent, audioFilename);
+        deleteDecibelRows(fromIso, toIso);
+      });
     }
 
     setCompletedDurationMillis((prev) => prev + segmentDuration);
@@ -296,9 +297,9 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
         const audioFilename = moveRecording(uri);
         setSavedFiles((prev) => [...prev, getRecordingUri(audioFilename)]);
 
-        const csvContent = exportDecibelCsv(fromIso, toIso);
+        const csvContent = await exportDecibelCsv(fromIso, toIso);
         writeDecibelCsv(csvContent, audioFilename);
-        deleteDecibelRows(fromIso, toIso);
+        await deleteDecibelRows(fromIso, toIso);
       }
       setCompletedDurationMillis((prev) => prev + segmentDuration);
       recorderRef.current = null;
