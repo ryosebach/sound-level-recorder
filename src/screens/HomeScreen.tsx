@@ -69,7 +69,7 @@ export default function HomeScreen({ navigation }: Props) {
       </TouchableOpacity>
 
       {savedFiles.length > 0 && (
-        <Text style={styles.uri}>
+        <Text style={styles.savedCount}>
           {savedFiles.length} file{savedFiles.length !== 1 ? "s" : ""} saved
         </Text>
       )}
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "bold",
   },
-  uri: {
+  savedCount: {
     fontSize: 12,
     color: colors.textTertiary,
     textAlign: "center",

@@ -19,6 +19,10 @@ import {
   deleteDecibelRows,
   clearAllDecibelRows,
 } from "@/utils/decibelBuffer";
+import {
+  startBackgroundTask,
+  stopBackgroundTask,
+} from "@/utils/backgroundTask";
 
 const AudioModule = requireNativeModule("ExpoAudio");
 
@@ -42,7 +46,7 @@ const RECORDING_OPTIONS = {
 };
 
 const POLLING_INTERVAL_MS = 100;
-const SPLIT_INTERVAL_MS = 3_600_000; // 1 hour
+const SPLIT_INTERVAL_MS = 21_600_000; // 6 hours
 
 // Approximate offset to convert dBFS to dB SPL.
 // This is a rough estimate; accurate conversion requires per-device calibration.
@@ -84,6 +88,7 @@ export function useRecorder() {
   useEffect(() => {
     setAudioModeAsync({
       playsInSilentMode: true,
+      shouldPlayInBackground: true,
       allowsRecording: true,
       allowsBackgroundRecording: true,
     });
@@ -112,8 +117,18 @@ export function useRecorder() {
             const offsetMs = now - segmentStartRef.current;
             insertDecibel(isoString, offsetMs, newState.metering);
           }
-        } catch {
-          // Recorder may have been released during split
+
+          // Log every second in background for debugging
+          if (AppState.currentState === "background") {
+            const elapsed = now - segmentStartRef.current;
+            if (Math.floor(elapsed / 1000) !== Math.floor((elapsed - POLLING_INTERVAL_MS) / 1000)) {
+              console.log(
+                `[BG_METER] elapsed=${Math.floor(elapsed / 1000)}s isRecording=${newState.isRecording} metering=${newState.metering?.toFixed(1) ?? "null"}`
+              );
+            }
+          }
+        } catch (e) {
+          console.log(`[BG_METER] polling error: ${e}`);
         }
       }, POLLING_INTERVAL_MS);
     },
@@ -156,6 +171,8 @@ export function useRecorder() {
       const csvContent = exportDecibelCsv(fromIso, toIso);
       writeDecibelCsv(csvContent, audioFilename);
       deleteDecibelRows(fromIso, toIso);
+
+      console.log(`[BG_METER] split: ${audioFilename} duration=${segmentDuration}ms`);
     }
 
     setCompletedDurationMillis((prev) => prev + segmentDuration);
@@ -175,12 +192,13 @@ export function useRecorder() {
   }, [segmentElapsedMillis, isRecording, splitRecording]);
 
   // Restart polling and refresh state when returning to foreground.
-  // setInterval stops firing while the app is in the background;
+  // setInterval may stop firing while the app is in the background on iOS;
   // we recreate it on resume so the UI keeps updating.
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       const recorder = recorderRef.current;
       if (nextAppState === "active" && recorder) {
+        console.log("[BG_METER] resumed foreground");
         setSegmentElapsedMillis(Date.now() - segmentStartRef.current);
         try {
           const s: RecorderState = recorder.getStatus();
@@ -216,6 +234,8 @@ export function useRecorder() {
     await recorder.prepareToRecordAsync(RECORDING_OPTIONS);
     recorder.record();
 
+    await startBackgroundTask();
+
     clearAllDecibelRows();
     segmentStartRef.current = Date.now();
     segmentStartIsoRef.current = new Date().toISOString();
@@ -228,6 +248,7 @@ export function useRecorder() {
 
   const stop = useCallback(async () => {
     stopPolling();
+
     const recorder = recorderRef.current;
     if (recorder) {
       const segmentDuration = Date.now() - segmentStartRef.current;
@@ -247,6 +268,8 @@ export function useRecorder() {
       setCompletedDurationMillis((prev) => prev + segmentDuration);
       recorderRef.current = null;
     }
+
+    await stopBackgroundTask();
     setMetering(undefined);
     setIsRecording(false);
     setSegmentElapsedMillis(0);

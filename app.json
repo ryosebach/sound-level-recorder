@@ -31,7 +31,8 @@
         "RECORD_AUDIO",
         "FOREGROUND_SERVICE",
         "FOREGROUND_SERVICE_MICROPHONE",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "WAKE_LOCK"
       ]
     },
     "web": {
@@ -45,7 +46,8 @@
           "enableBackgroundRecording": true
         }
       ],
-      "expo-sqlite"
+      "expo-sqlite",
+      "./plugins/withBackgroundActions"
     ]
   }
 }
