@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import { Pressable, ScrollView } from "react-native";
 import Svg, { Line, Path, Rect, Text as SvgText } from "react-native-svg";
+import colors from "@/theme/colors";
 import type { DecibelPoint } from "@/utils/csvParser";
 
 type Props = {
@@ -9,6 +10,7 @@ type Props = {
   currentTimeMs: number;
   viewportWidth: number;
   height: number;
+  startTimestamp: string;
   onSeek: (ms: number) => void;
 };
 
@@ -23,14 +25,14 @@ const MARGIN_TOP = 24;
 
 const LABEL_FONT_SIZE = 10;
 const CURSOR_FONT_SIZE = 11;
-const GRID_COLOR = "#e2e8f0";
-const GRID_LABEL_COLOR = "#a0aec0";
+const GRID_COLOR = colors.borderStrong;
+const GRID_LABEL_COLOR = colors.textTertiary;
 
-function formatTimeLabel(ms: number): string {
-  const totalSeconds = Math.floor(ms / 1000);
-  const h = Math.floor(totalSeconds / 3600);
-  const m = Math.floor((totalSeconds % 3600) / 60);
-  const s = totalSeconds % 60;
+function formatTimeLabel(ms: number, startEpochMs: number): string {
+  const date = new Date(startEpochMs + ms);
+  const h = date.getHours();
+  const m = date.getMinutes();
+  const s = date.getSeconds();
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
@@ -54,8 +56,10 @@ export default function DbGraph({
   currentTimeMs,
   viewportWidth,
   height,
+  startTimestamp,
   onSeek,
 }: Props) {
+  const startEpochMs = useMemo(() => new Date(startTimestamp).getTime(), [startTimestamp]);
   const scrollRef = useRef<ScrollView>(null);
   const isUserScrolling = useRef(false);
   const scrollTimeout = useRef<ReturnType<typeof setTimeout>>(undefined);
@@ -140,7 +144,7 @@ export default function DbGraph({
 
   // --- Cursor label positioning (avoid clipping at edges) ---
   const cursorDbLabel = `${currentDb.toFixed(0)} dB`;
-  const cursorTimeLabel = formatTimeLabel(currentTimeMs);
+  const cursorTimeLabel = formatTimeLabel(currentTimeMs, startEpochMs);
   const labelWidth = 56;
   const labelHalf = labelWidth / 2;
 
@@ -195,7 +199,7 @@ export default function DbGraph({
             y={MARGIN_TOP}
             width={totalPlotWidth}
             height={plotHeight}
-            fill="#f7fafc"
+            fill={colors.bgSecondary}
           />
 
           {/* --- Horizontal grid lines (dB) + Y-axis labels --- */}
@@ -244,13 +248,13 @@ export default function DbGraph({
               fontSize={LABEL_FONT_SIZE}
               fill={GRID_LABEL_COLOR}
             >
-              {formatTimeLabel(ms)}
+              {formatTimeLabel(ms, startEpochMs)}
             </SvgText>
           ))}
 
           {/* --- Data line --- */}
           {pathD !== "" && (
-            <Path d={pathD} fill="none" stroke="#3182ce" strokeWidth={1.5} />
+            <Path d={pathD} fill="none" stroke={colors.accentBlue} strokeWidth={1.5} />
           )}
 
           {/* --- Cursor line --- */}
@@ -259,7 +263,7 @@ export default function DbGraph({
             y1={MARGIN_TOP}
             x2={cursorX}
             y2={MARGIN_TOP + plotHeight}
-            stroke="#e53e3e"
+            stroke={colors.accentRed}
             strokeWidth={2}
           />
 
@@ -270,7 +274,7 @@ export default function DbGraph({
             width={labelWidth}
             height={16}
             rx={3}
-            fill="#e53e3e"
+            fill={colors.accentRed}
           />
           <SvgText
             x={labelCenterX}
@@ -278,7 +282,7 @@ export default function DbGraph({
             textAnchor="middle"
             fontSize={CURSOR_FONT_SIZE}
             fontWeight="bold"
-            fill="#fff"
+            fill={colors.onAccent}
           >
             {cursorDbLabel}
           </SvgText>
@@ -290,7 +294,7 @@ export default function DbGraph({
             width={labelWidth}
             height={16}
             rx={3}
-            fill="#e53e3e"
+            fill={colors.accentRed}
           />
           <SvgText
             x={labelCenterX}
@@ -298,7 +302,7 @@ export default function DbGraph({
             textAnchor="middle"
             fontSize={CURSOR_FONT_SIZE}
             fontWeight="bold"
-            fill="#fff"
+            fill={colors.onAccent}
           >
             {cursorTimeLabel}
           </SvgText>
