@@ -1,19 +1,41 @@
-import { useEffect, useRef, useState } from "react";
-import { AppState, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  useWindowDimensions,
+} from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { useFocusEffect } from "@react-navigation/native";
 import { useRecorder } from "@/hooks/useRecorder";
 import { formatDuration } from "@/utils/formatDuration";
+import { getSplitIntervalMs } from "@/utils/settingsStore";
+import { getRecentDecibels } from "@/utils/decibelBuffer";
+import { downsample } from "@/utils/csvParser";
+import type { DecibelPoint } from "@/utils/csvParser";
+import LiveDbGraph from "@/components/LiveDbGraph";
 import colors from "@/theme/colors";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
 
+const LIVE_WINDOW_MS = 60_000; // 1 minute
+const GRAPH_HEIGHT = 160;
+
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
-function normalizeDbSpl(dbSpl: number): number {
-  return Math.max(0, Math.min(1, dbSpl / 130));
-}
-
 export default function HomeScreen({ navigation }: Props) {
+  const { width: screenWidth } = useWindowDimensions();
+  const [splitIntervalMs, setSplitIntervalMs] = useState<number | null>(
+    getSplitIntervalMs
+  );
+
+  useFocusEffect(
+    useCallback(() => {
+      setSplitIntervalMs(getSplitIntervalMs());
+    }, [])
+  );
+
   const {
     status,
     dbSpl,
@@ -22,26 +44,47 @@ export default function HomeScreen({ navigation }: Props) {
     savedFiles,
     start,
     stop,
-  } = useRecorder();
+  } = useRecorder(splitIntervalMs);
 
-  const appState = useRef(AppState.currentState);
-  const [appStateLabel, setAppStateLabel] = useState(AppState.currentState);
+  const [livePoints, setLivePoints] = useState<DecibelPoint[]>([]);
+  const timerRef = useRef<ReturnType<typeof setInterval>>(undefined);
 
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      appState.current = nextAppState;
-      setAppStateLabel(nextAppState);
-    });
-    return () => subscription.remove();
-  }, []);
+    if (!isRecording) {
+      if (timerRef.current) clearInterval(timerRef.current);
+      return;
+    }
 
-  const barWidth = normalizeDbSpl(dbSpl) * 100;
+    const graphWidth = screenWidth - 48; // paddingHorizontal 24 * 2
+    const maxPoints = Math.floor(graphWidth / 2);
+
+    const poll = () => {
+      const rows = getRecentDecibels(LIVE_WINDOW_MS);
+      const points: DecibelPoint[] = rows.map((r) => ({
+        timestamp: r.ts,
+        offsetMs: r.offset_ms,
+        dbSpl: Math.max(0, r.db + 100),
+      }));
+      setLivePoints(downsample(points, maxPoints));
+    };
+
+    poll();
+    timerRef.current = setInterval(poll, 1000);
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isRecording, screenWidth]);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Recording PoC</Text>
-
-      <Text style={styles.appState}>AppState: {appStateLabel}</Text>
+      <Text
+        style={[
+          styles.statusLabel,
+          isRecording ? styles.statusRecording : styles.statusIdle,
+        ]}
+      >
+        {isRecording ? "● 録音中" : "■ 停止中"}
+      </Text>
 
       {status === "permission_denied" && (
         <Text style={styles.warning}>
@@ -52,12 +95,20 @@ export default function HomeScreen({ navigation }: Props) {
       <View style={styles.meterContainer}>
         <Text style={styles.dbValue}>{dbSpl.toFixed(1)} dB</Text>
         <Text style={styles.dbLabel}>approx. SPL</Text>
-        <View style={styles.barBackground}>
-          <View style={[styles.barFill, { width: `${barWidth}%` }]} />
-        </View>
+        <LiveDbGraph
+          points={livePoints}
+          windowMs={LIVE_WINDOW_MS}
+          viewportWidth={screenWidth - 48}
+          height={GRAPH_HEIGHT}
+        />
       </View>
 
-      <Text style={styles.duration}>{formatDuration(totalDurationMillis)}</Text>
+      <Text style={styles.duration}>
+        {formatDuration(totalDurationMillis)}
+        {savedFiles.length > 0
+          ? ` (${savedFiles.length} file${savedFiles.length !== 1 ? "s" : ""})`
+          : ""}
+      </Text>
 
       <TouchableOpacity
         style={[styles.button, isRecording && styles.buttonStop]}
@@ -67,12 +118,6 @@ export default function HomeScreen({ navigation }: Props) {
           {isRecording ? "停止" : "録音開始"}
         </Text>
       </TouchableOpacity>
-
-      {savedFiles.length > 0 && (
-        <Text style={styles.savedCount}>
-          {savedFiles.length} file{savedFiles.length !== 1 ? "s" : ""} saved
-        </Text>
-      )}
 
       <TouchableOpacity
         style={styles.navButton}
@@ -93,12 +138,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 32,
-    color: colors.textPrimary,
   },
   warning: {
     color: colors.accentRed,
@@ -123,18 +162,6 @@ const styles = StyleSheet.create({
     color: colors.textTertiary,
     marginBottom: 12,
   },
-  barBackground: {
-    width: "100%",
-    height: 20,
-    backgroundColor: colors.borderStrong,
-    borderRadius: 10,
-    overflow: "hidden",
-  },
-  barFill: {
-    height: "100%",
-    backgroundColor: colors.accentGreen,
-    borderRadius: 10,
-  },
   duration: {
     fontSize: 20,
     fontVariant: ["tabular-nums"],
@@ -146,7 +173,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 12,
-    marginBottom: 16,
+    marginBottom: 24,
   },
   buttonStop: {
     backgroundColor: colors.accentRed,
@@ -155,17 +182,6 @@ const styles = StyleSheet.create({
     color: colors.onAccent,
     fontSize: 18,
     fontWeight: "bold",
-  },
-  savedCount: {
-    fontSize: 12,
-    color: colors.textTertiary,
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  appState: {
-    fontSize: 14,
-    color: colors.textTertiary,
-    marginBottom: 16,
   },
   navButton: {
     backgroundColor: colors.accentPurple,
@@ -178,5 +194,16 @@ const styles = StyleSheet.create({
     color: colors.onAccent,
     fontSize: 16,
     fontWeight: "bold",
+  },
+  statusLabel: {
+    fontSize: 16,
+    fontWeight: "bold",
+    marginBottom: 8,
+  },
+  statusRecording: {
+    color: colors.accentRed,
+  },
+  statusIdle: {
+    color: colors.textSecondary,
   },
 });
