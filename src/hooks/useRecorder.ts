@@ -14,7 +14,7 @@ import {
   writeDecibelCsv,
 } from "@/utils/fileManager";
 import {
-  insertDecibel,
+  insertDecibelBatch,
   exportDecibelCsv,
   deleteDecibelRows,
   clearAllDecibelRows,
@@ -46,6 +46,7 @@ const RECORDING_OPTIONS = {
 };
 
 const POLLING_INTERVAL_MS = 100;
+const FLUSH_INTERVAL_MS = 2000;
 
 // Approximate offset to convert dBFS to dB SPL.
 // This is a rough estimate; accurate conversion requires per-device calibration.
@@ -82,6 +83,15 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
   const segmentStartRef = useRef<number>(0);
   // ISO timestamp when the current segment started (for SQLite range queries)
   const segmentStartIsoRef = useRef<string>("");
+  // Memory buffer for batched SQLite inserts
+  const pendingInserts = useRef<{ ts: string; offsetMs: number; db: number }[]>(
+    []
+  );
+  const flushRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Refs for background-safe split: polling callback can access latest values
+  const splitIntervalMsRef = useRef(splitIntervalMs);
+  splitIntervalMsRef.current = splitIntervalMs;
+  const splitRecordingRef = useRef<() => void>(() => {});
 
   // Set audio mode early so the native recorder inherits allowsBackgroundRecording
   useEffect(() => {
@@ -92,6 +102,25 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
       allowsBackgroundRecording: true,
     });
   }, []);
+
+  const flushPending = useCallback(() => {
+    if (pendingInserts.current.length > 0) {
+      insertDecibelBatch(pendingInserts.current);
+      pendingInserts.current = [];
+    }
+  }, []);
+
+  const stopFlushing = useCallback(() => {
+    if (flushRef.current != null) {
+      clearInterval(flushRef.current);
+      flushRef.current = null;
+    }
+  }, []);
+
+  const startFlushing = useCallback(() => {
+    stopFlushing();
+    flushRef.current = setInterval(flushPending, FLUSH_INTERVAL_MS);
+  }, [stopFlushing, flushPending]);
 
   const stopPolling = useCallback(() => {
     if (pollingRef.current != null) {
@@ -110,11 +139,23 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
           const newState: RecorderState = recorder.getStatus();
           setMetering(newState.metering);
           setIsRecording(newState.isRecording);
-          setSegmentElapsedMillis(now - segmentStartRef.current);
+          const elapsed = now - segmentStartRef.current;
+          setSegmentElapsedMillis(elapsed);
           if (newState.metering != null) {
-            const isoString = new Date(now).toISOString();
-            const offsetMs = now - segmentStartRef.current;
-            insertDecibel(isoString, offsetMs, newState.metering);
+            pendingInserts.current.push({
+              ts: new Date(now).toISOString(),
+              offsetMs: elapsed,
+              db: newState.metering,
+            });
+          }
+          // Split check — runs in background too (via react-native-background-actions)
+          const interval = splitIntervalMsRef.current;
+          if (
+            !isSplittingRef.current &&
+            interval !== null &&
+            elapsed >= interval
+          ) {
+            splitRecordingRef.current();
           }
         } catch {
           // Polling may fail if recorder was released
@@ -135,6 +176,8 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
     }
 
     stopPolling();
+    stopFlushing();
+    flushPending();
 
     const segmentDuration = Date.now() - segmentStartRef.current;
     const fromIso = segmentStartIsoRef.current;
@@ -151,6 +194,7 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
     segmentStartRef.current = Date.now();
     segmentStartIsoRef.current = new Date().toISOString();
     startPolling(newRecorder);
+    startFlushing();
 
     // Move the old file and export CSV
     if (oldUri) {
@@ -166,24 +210,14 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
     setCompletedDurationMillis((prev) => prev + segmentDuration);
     setSegmentElapsedMillis(0);
     isSplittingRef.current = false;
-  }, [stopPolling, startPolling]);
-
-  // Check if split is needed (wall-clock based)
-  useEffect(() => {
-    if (
-      isRecording &&
-      !isSplittingRef.current &&
-      splitIntervalMs !== null &&
-      segmentElapsedMillis >= splitIntervalMs
-    ) {
-      splitRecording();
-    }
-  }, [segmentElapsedMillis, isRecording, splitIntervalMs, splitRecording]);
+  }, [stopPolling, startPolling, stopFlushing, startFlushing, flushPending]);
+  splitRecordingRef.current = splitRecording;
 
   // Restart polling and refresh state when returning to foreground.
   // setInterval may stop firing while the app is in the background on iOS;
   // we recreate it on resume so the UI keeps updating.
   useEffect(() => {
+    let resumeTimeoutId: ReturnType<typeof setTimeout> | null = null;
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       const recorder = recorderRef.current;
       if (nextAppState === "active" && recorder) {
@@ -195,18 +229,27 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
         } catch {
           // Recorder may have been released
         }
-        startPolling(recorder);
+        // Delay polling restart to let UI render first
+        resumeTimeoutId = setTimeout(() => {
+          startPolling(recorder);
+          startFlushing();
+        }, 300);
       }
     });
-    return () => subscription.remove();
-  }, [startPolling]);
+    return () => {
+      if (resumeTimeoutId) clearTimeout(resumeTimeoutId);
+      subscription.remove();
+    };
+  }, [startPolling, startFlushing]);
 
   // Clean up on unmount
   useEffect(() => {
     return () => {
       stopPolling();
+      stopFlushing();
+      flushPending();
     };
-  }, [stopPolling]);
+  }, [stopPolling, stopFlushing, flushPending]);
 
   const start = useCallback(async () => {
     const { granted } = await requestRecordingPermissionsAsync();
@@ -225,17 +268,21 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
     await startBackgroundTask();
 
     clearAllDecibelRows();
+    pendingInserts.current = [];
     segmentStartRef.current = Date.now();
     segmentStartIsoRef.current = new Date().toISOString();
     setSavedFiles([]);
     setCompletedDurationMillis(0);
     setSegmentElapsedMillis(0);
     startPolling(recorder);
+    startFlushing();
     setStatus("recording");
-  }, [startPolling]);
+  }, [startPolling, startFlushing]);
 
   const stop = useCallback(async () => {
     stopPolling();
+    stopFlushing();
+    flushPending();
 
     const recorder = recorderRef.current;
     if (recorder) {
@@ -262,7 +309,7 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
     setIsRecording(false);
     setSegmentElapsedMillis(0);
     setStatus("idle");
-  }, [stopPolling]);
+  }, [stopPolling, stopFlushing, flushPending]);
 
   const meteringDbfs = metering ?? -160;
   const dbSpl = Math.max(0, meteringDbfs + DBFS_TO_SPL_OFFSET);

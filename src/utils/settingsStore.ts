@@ -17,6 +17,8 @@ export type SplitIntervalOption = {
 };
 
 export const SPLIT_INTERVAL_OPTIONS: SplitIntervalOption[] = [
+  { label: "30秒", value: 30_000 },
+  { label: "30分", value: 1_800_000 },
   { label: "1時間", value: 3_600_000 },
   { label: "3時間", value: 10_800_000 },
   { label: "6時間", value: 21_600_000 },
