@@ -9,22 +9,22 @@ import {
 } from "@/utils/settingsStore";
 import { getTotalStorageBytes, formatBytes } from "@/utils/storageUsage";
 import {
+  isBatteryOptimizationEnabled,
   requestIgnoreBatteryOptimizations,
   getManufacturerGuideUrl,
   openManufacturerGuide,
 } from "@/utils/batteryOptimization";
-import { isIgnoringBatteryOptimizations } from "battery-optimization";
 
 const SettingsScreen = () => {
   const [splitInterval, setSplitInterval] = useState<number | null>(getSplitIntervalMs);
   const [storageBytes, setStorageBytes] = useState(0);
-  const [batteryOptExcluded, setBatteryOptExcluded] = useState(false);
+  const [batteryOptEnabled, setBatteryOptEnabled] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       setStorageBytes(getTotalStorageBytes());
       if (Platform.OS === "android") {
-        setBatteryOptExcluded(isIgnoringBatteryOptimizations());
+        isBatteryOptimizationEnabled().then(setBatteryOptEnabled);
       }
     }, []),
   );
@@ -36,7 +36,7 @@ const SettingsScreen = () => {
 
   const handleRequestBatteryOpt = async () => {
     await requestIgnoreBatteryOptimizations();
-    setBatteryOptExcluded(isIgnoringBatteryOptimizations());
+    setBatteryOptEnabled(await isBatteryOptimizationEnabled());
   };
 
   const manufacturerGuideUrl = getManufacturerGuideUrl();
@@ -68,9 +68,9 @@ const SettingsScreen = () => {
         <>
           <Text style={styles.sectionTitle}>バッテリー最適化</Text>
           <Text style={styles.statusText}>
-            {batteryOptExcluded ? "除外済み" : "未設定（除外を推奨）"}
+            {batteryOptEnabled ? "未設定（除外を推奨）" : "除外済み"}
           </Text>
-          {!batteryOptExcluded && (
+          {batteryOptEnabled && (
             <TouchableOpacity style={styles.actionButton} onPress={handleRequestBatteryOpt}>
               <Text style={styles.actionButtonText}>バッテリー最適化の除外を設定</Text>
             </TouchableOpacity>

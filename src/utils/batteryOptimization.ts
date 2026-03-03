@@ -1,6 +1,6 @@
 import { Alert, Linking, Platform } from "react-native";
 import * as IntentLauncher from "expo-intent-launcher";
-import { isIgnoringBatteryOptimizations } from "battery-optimization";
+import * as Battery from "expo-battery";
 
 const MANUFACTURER_GUIDE_MAP: Record<string, string> = {
   samsung: "https://dontkillmyapp.com/samsung",
@@ -10,6 +10,11 @@ const MANUFACTURER_GUIDE_MAP: Record<string, string> = {
   vivo: "https://dontkillmyapp.com/vivo",
   oneplus: "https://dontkillmyapp.com/oneplus",
   sony: "https://dontkillmyapp.com/sony",
+};
+
+export const isBatteryOptimizationEnabled = async (): Promise<boolean> => {
+  if (Platform.OS !== "android") return false;
+  return Battery.isBatteryOptimizationEnabledAsync();
 };
 
 export const requestIgnoreBatteryOptimizations = async (): Promise<void> => {
@@ -67,6 +72,7 @@ export const showBatteryOptimizationAlert = (): Promise<void> => {
 
 export const maybeShowBatteryOptimizationAlert = async (): Promise<void> => {
   if (Platform.OS !== "android") return;
-  if (isIgnoringBatteryOptimizations()) return;
+  const optimizationEnabled = await isBatteryOptimizationEnabled();
+  if (!optimizationEnabled) return;
   await showBatteryOptimizationAlert();
 };
