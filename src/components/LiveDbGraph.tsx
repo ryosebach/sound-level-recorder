@@ -30,12 +30,7 @@ function formatTimeLabel(epochMs: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-export default function LiveDbGraph({
-  points,
-  windowMs,
-  viewportWidth,
-  height,
-}: Props) {
+export default function LiveDbGraph({ points, windowMs, viewportWidth, height }: Props) {
   const plotWidth = viewportWidth - MARGIN_LEFT;
   const plotHeight = height - MARGIN_TOP - MARGIN_BOTTOM;
 
@@ -154,9 +149,7 @@ export default function LiveDbGraph({
       ))}
 
       {/* Data line */}
-      {pathD !== "" && (
-        <Path d={pathD} fill="none" stroke={colors.accentBlue} strokeWidth={1.5} />
-      )}
+      {pathD !== "" && <Path d={pathD} fill="none" stroke={colors.accentBlue} strokeWidth={1.5} />}
     </Svg>
   );
 }

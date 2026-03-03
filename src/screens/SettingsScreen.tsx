@@ -10,15 +10,13 @@ import {
 import { getTotalStorageBytes, formatBytes } from "@/utils/storageUsage";
 
 export default function SettingsScreen() {
-  const [splitInterval, setSplitInterval] = useState<number | null>(
-    getSplitIntervalMs
-  );
+  const [splitInterval, setSplitInterval] = useState<number | null>(getSplitIntervalMs);
   const [storageBytes, setStorageBytes] = useState(0);
 
   useFocusEffect(
     useCallback(() => {
       setStorageBytes(getTotalStorageBytes());
-    }, [])
+    }, []),
   );
 
   const handleSelectInterval = (value: number | null) => {
@@ -31,20 +29,14 @@ export default function SettingsScreen() {
       <Text style={styles.sectionTitle}>分割間隔</Text>
       <View style={styles.chipRow}>
         {SPLIT_INTERVAL_OPTIONS.map((opt) => {
-          const selected =
-            splitInterval === opt.value;
+          const selected = splitInterval === opt.value;
           return (
             <TouchableOpacity
               key={opt.label}
               style={[styles.chip, selected && styles.chipSelected]}
               onPress={() => handleSelectInterval(opt.value)}
             >
-              <Text
-                style={[
-                  styles.chipText,
-                  selected && styles.chipTextSelected,
-                ]}
-              >
+              <Text style={[styles.chipText, selected && styles.chipTextSelected]}>
                 {opt.label}
               </Text>
             </TouchableOpacity>

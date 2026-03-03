@@ -27,25 +27,16 @@ type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
 export default function HomeScreen({ navigation }: Props) {
   const { width: screenWidth } = useWindowDimensions();
-  const [splitIntervalMs, setSplitIntervalMs] = useState<number | null>(
-    getSplitIntervalMs
-  );
+  const [splitIntervalMs, setSplitIntervalMs] = useState<number | null>(getSplitIntervalMs);
 
   useFocusEffect(
     useCallback(() => {
       setSplitIntervalMs(getSplitIntervalMs());
-    }, [])
+    }, []),
   );
 
-  const {
-    status,
-    dbSpl,
-    isRecording,
-    totalDurationMillis,
-    savedFiles,
-    start,
-    stop,
-  } = useRecorder(splitIntervalMs);
+  const { status, dbSpl, isRecording, totalDurationMillis, savedFiles, start, stop } =
+    useRecorder(splitIntervalMs);
 
   const [livePoints, setLivePoints] = useState<DecibelPoint[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval>>(undefined);
@@ -112,19 +103,12 @@ export default function HomeScreen({ navigation }: Props) {
 
   return (
     <View style={styles.container}>
-      <Text
-        style={[
-          styles.statusLabel,
-          isRecording ? styles.statusRecording : styles.statusIdle,
-        ]}
-      >
+      <Text style={[styles.statusLabel, isRecording ? styles.statusRecording : styles.statusIdle]}>
         {isRecording ? "● 録音中" : "■ 停止中"}
       </Text>
 
       {status === "permission_denied" && (
-        <Text style={styles.warning}>
-          マイクの権限が必要です。設定から許可してください。
-        </Text>
+        <Text style={styles.warning}>マイクの権限が必要です。設定から許可してください。</Text>
       )}
 
       <View style={styles.meterContainer}>
@@ -149,18 +133,14 @@ export default function HomeScreen({ navigation }: Props) {
         style={[styles.button, isRecording && styles.buttonStop]}
         onPress={isRecording ? stop : start}
       >
-        <Text style={styles.buttonText}>
-          {isRecording ? "停止" : "録音開始"}
-        </Text>
+        <Text style={styles.buttonText}>{isRecording ? "停止" : "録音開始"}</Text>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={styles.navButton}
-        onPress={() => navigation.navigate("Recordings")}
-      >
+      <TouchableOpacity style={styles.navButton} onPress={() => navigation.navigate("Recordings")}>
         <Text style={styles.navButtonText}>ファイル一覧</Text>
       </TouchableOpacity>
 
+      {/* oxlint-disable-next-line react/style-prop-object -- expo-status-bar's style prop is a string union, not a CSS style object */}
       <StatusBar style="light" />
     </View>
   );

@@ -41,8 +41,8 @@ function pickTimeInterval(msPerViewport: number): number {
   // Aim for roughly 4-6 labels per viewport
   const target = msPerViewport / 5;
   const candidates = [
-    1_000, 2_000, 5_000, 10_000, 15_000, 30_000, 60_000, 120_000, 300_000,
-    600_000, 900_000, 1_800_000, 3_600_000,
+    1_000, 2_000, 5_000, 10_000, 15_000, 30_000, 60_000, 120_000, 300_000, 600_000, 900_000,
+    1_800_000, 3_600_000,
   ];
   for (const c of candidates) {
     if (c >= target) return c;
@@ -84,7 +84,7 @@ export default function DbGraph({
       const clamped = Math.min(Math.max(db, Y_MIN), Y_MAX);
       return MARGIN_TOP + plotHeight - ((clamped - Y_MIN) / (Y_MAX - Y_MIN)) * plotHeight;
     },
-    [plotHeight]
+    [plotHeight],
   );
 
   // Convert offsetMs to X coordinate
@@ -92,7 +92,7 @@ export default function DbGraph({
     (ms: number) => {
       return MARGIN_LEFT + (ms / durationMs) * totalPlotWidth;
     },
-    [durationMs, totalPlotWidth]
+    [durationMs, totalPlotWidth],
   );
 
   // --- Data path ---
@@ -126,7 +126,7 @@ export default function DbGraph({
       lines.push({ ms: t, x: msToX(t) });
     }
     return lines;
-  }, [durationMs, durationMin, msToX]);
+  }, [durationMs, plotWidth, totalPlotWidth, msToX]);
 
   // --- Cursor ---
   const cursorX = msToX(currentTimeMs);
@@ -157,7 +157,7 @@ export default function DbGraph({
   // Clamp label center X to stay within the SVG boundaries
   const labelCenterX = Math.max(
     MARGIN_LEFT + labelHalf,
-    Math.min(cursorX, totalSvgWidth - labelHalf)
+    Math.min(cursorX, totalSvgWidth - labelHalf),
   );
 
   // Auto-scroll to follow playback cursor
@@ -174,7 +174,7 @@ export default function DbGraph({
       const tappedMs = (xInPlot / totalPlotWidth) * durationMs;
       onSeek(Math.max(0, Math.min(durationMs, tappedMs)));
     },
-    [totalPlotWidth, durationMs, onSeek]
+    [totalPlotWidth, durationMs, onSeek],
   );
 
   const handleScrollBegin = useCallback(() => {

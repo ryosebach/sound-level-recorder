@@ -1,12 +1,5 @@
 import { useCallback, useState } from "react";
-import {
-  Alert,
-  FlatList,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
@@ -51,42 +44,34 @@ export default function RecordingsScreen({ navigation }: Props) {
 
   const handleDeleteSelected = () => {
     if (selectedUris.size === 0) return;
-    Alert.alert(
-      "選択したファイルを削除",
-      `${selectedUris.size} 件のファイルを削除しますか？`,
-      [
-        { text: "キャンセル", style: "cancel" },
-        {
-          text: "削除",
-          style: "destructive",
-          onPress: () => {
-            for (const uri of selectedUris) {
-              deleteRecording(uri);
-            }
-            loadFiles();
-          },
+    Alert.alert("選択したファイルを削除", `${selectedUris.size} 件のファイルを削除しますか？`, [
+      { text: "キャンセル", style: "cancel" },
+      {
+        text: "削除",
+        style: "destructive",
+        onPress: () => {
+          for (const uri of selectedUris) {
+            deleteRecording(uri);
+          }
+          loadFiles();
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleDeleteAll = () => {
     if (files.length === 0) return;
-    Alert.alert(
-      "全件削除",
-      `${files.length} 件のファイルをすべて削除しますか？`,
-      [
-        { text: "キャンセル", style: "cancel" },
-        {
-          text: "全件削除",
-          style: "destructive",
-          onPress: () => {
-            deleteAllRecordings();
-            loadFiles();
-          },
+    Alert.alert("全件削除", `${files.length} 件のファイルをすべて削除しますか？`, [
+      { text: "キャンセル", style: "cancel" },
+      {
+        text: "全件削除",
+        style: "destructive",
+        onPress: () => {
+          deleteAllRecordings();
+          loadFiles();
         },
-      ]
-    );
+      },
+    ]);
   };
 
   const handleRowPress = (item: RecordingFile) => {
@@ -129,9 +114,7 @@ export default function RecordingsScreen({ navigation }: Props) {
           onPress={handleDeleteSelected}
           disabled={selectedUris.size === 0}
         >
-          <Text style={styles.toolbarButtonText}>
-            選択削除 ({selectedUris.size})
-          </Text>
+          <Text style={styles.toolbarButtonText}>選択削除 ({selectedUris.size})</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[

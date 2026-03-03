@@ -1,10 +1,7 @@
 import { useCallback, useState } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Slider from "@react-native-community/slider";
-import {
-  useAudioPlayer,
-  useAudioPlayerStatus,
-} from "expo-audio";
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { usePlaybackData } from "@/hooks/usePlaybackData";
 import { formatDuration } from "@/utils/formatDuration";
 import DbGraph from "@/components/DbGraph";
@@ -47,7 +44,7 @@ export default function PlaybackScreen({ route }: Props) {
     (ms: number) => {
       player.seekTo(ms / 1000);
     },
-    [player]
+    [player],
   );
 
   const handleSlidingStart = useCallback(() => {
@@ -61,7 +58,7 @@ export default function PlaybackScreen({ route }: Props) {
         setSeekValue(value);
       }
     },
-    [isSeeking]
+    [isSeeking],
   );
 
   const handleSlidingComplete = useCallback(
@@ -69,7 +66,7 @@ export default function PlaybackScreen({ route }: Props) {
       player.seekTo(value);
       setIsSeeking(false);
     },
-    [player]
+    [player],
   );
 
   const displayTime = isSeeking ? seekValue * 1000 : currentTimeMs;
@@ -91,34 +88,26 @@ export default function PlaybackScreen({ route }: Props) {
         )}
         {playbackData.status === "error" && (
           <View style={styles.graphPlaceholder}>
-            <Text style={styles.errorText}>
-              CSVデータが見つかりません
-            </Text>
+            <Text style={styles.errorText}>CSVデータが見つかりません</Text>
           </View>
         )}
-        {playbackData.status === "ready" &&
-          viewportWidth > 0 &&
-          durationMs > 0 && (
-            <DbGraph
-              points={playbackData.points}
-              durationMs={durationMs}
-              currentTimeMs={currentTimeMs}
-              viewportWidth={viewportWidth}
-              height={250}
-              startTimestamp={playbackData.startTimestamp}
-              onSeek={handleSeek}
-            />
-          )}
+        {playbackData.status === "ready" && viewportWidth > 0 && durationMs > 0 && (
+          <DbGraph
+            points={playbackData.points}
+            durationMs={durationMs}
+            currentTimeMs={currentTimeMs}
+            viewportWidth={viewportWidth}
+            height={250}
+            startTimestamp={playbackData.startTimestamp}
+            onSeek={handleSeek}
+          />
+        )}
       </View>
 
       <View style={styles.controls}>
         <View style={styles.timeRow}>
-          <Text style={styles.time}>
-            {formatDuration(displayTime)}
-          </Text>
-          <Text style={styles.time}>
-            {formatDuration(durationMs)}
-          </Text>
+          <Text style={styles.time}>{formatDuration(displayTime)}</Text>
+          <Text style={styles.time}>{formatDuration(durationMs)}</Text>
         </View>
 
         <Slider
@@ -134,13 +123,8 @@ export default function PlaybackScreen({ route }: Props) {
           thumbTintColor={colors.accentBlue}
         />
 
-        <TouchableOpacity
-          style={styles.playButton}
-          onPress={handlePlayPause}
-        >
-          <Text style={styles.playButtonText}>
-            {status.playing ? "⏸ 一時停止" : "▶ 再生"}
-          </Text>
+        <TouchableOpacity style={styles.playButton} onPress={handlePlayPause}>
+          <Text style={styles.playButtonText}>{status.playing ? "⏸ 一時停止" : "▶ 再生"}</Text>
         </TouchableOpacity>
       </View>
     </View>

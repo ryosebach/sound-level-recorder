@@ -44,10 +44,7 @@ export function getRecordingUri(filename: string): string {
   return new File(getRecordingDir(), filename).uri;
 }
 
-export function writeDecibelCsv(
-  csvContent: string,
-  audioFilename: string
-): string {
+export function writeDecibelCsv(csvContent: string, audioFilename: string): string {
   ensureRecordingDir();
   const csvFilename = audioFilename.replace(/\.m4a$/, ".csv");
   const dest = new File(getRecordingDir(), csvFilename);

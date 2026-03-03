@@ -21,10 +21,7 @@ export function parseCsv(content: string): DecibelPoint[] {
   return points;
 }
 
-export function downsample(
-  points: DecibelPoint[],
-  maxPoints: number
-): DecibelPoint[] {
+export function downsample(points: DecibelPoint[], maxPoints: number): DecibelPoint[] {
   if (points.length <= maxPoints) return points;
   const result: DecibelPoint[] = [];
   const step = (points.length - 1) / (maxPoints - 1);

@@ -9,15 +9,11 @@ db.execSync(
     ts TEXT NOT NULL,
     offset_ms INTEGER NOT NULL,
     db REAL NOT NULL
-  )`
+  )`,
 );
-db.execSync(
-  "CREATE INDEX IF NOT EXISTS idx_decibel_log_ts ON decibel_log(ts)"
-);
+db.execSync("CREATE INDEX IF NOT EXISTS idx_decibel_log_ts ON decibel_log(ts)");
 
-export function insertDecibelBatch(
-  rows: { ts: string; offsetMs: number; db: number }[]
-): void {
+export function insertDecibelBatch(rows: { ts: string; offsetMs: number; db: number }[]): void {
   if (rows.length === 0) return;
   try {
     db.withTransactionSync(() => {
@@ -26,7 +22,7 @@ export function insertDecibelBatch(
           "INSERT INTO decibel_log (ts, offset_ms, db) VALUES (?, ?, ?)",
           row.ts,
           row.offsetMs,
-          row.db
+          row.db,
         );
       }
     });
@@ -36,16 +32,12 @@ export function insertDecibelBatch(
 }
 
 /** @deprecated Use insertDecibelBatch for better performance */
-export function insertDecibel(
-  timestampIso: string,
-  offsetMs: number,
-  dbfs: number
-): void {
+export function insertDecibel(timestampIso: string, offsetMs: number, dbfs: number): void {
   db.runSync(
     "INSERT INTO decibel_log (ts, offset_ms, db) VALUES (?, ?, ?)",
     timestampIso,
     offsetMs,
-    dbfs
+    dbfs,
   );
 }
 
@@ -53,7 +45,7 @@ export async function exportDecibelCsv(fromIso: string, toIso: string): Promise<
   const rows = await db.getAllAsync<{ ts: string; offset_ms: number; db: number }>(
     "SELECT ts, offset_ms, db FROM decibel_log WHERE ts >= ? AND ts <= ? ORDER BY ts",
     fromIso,
-    toIso
+    toIso,
   );
 
   const lines = ["timestamp,offset_ms,db"];
@@ -64,20 +56,16 @@ export async function exportDecibelCsv(fromIso: string, toIso: string): Promise<
 }
 
 export async function deleteDecibelRows(fromIso: string, toIso: string): Promise<void> {
-  await db.runAsync(
-    "DELETE FROM decibel_log WHERE ts >= ? AND ts <= ?",
-    fromIso,
-    toIso
-  );
+  await db.runAsync("DELETE FROM decibel_log WHERE ts >= ? AND ts <= ?", fromIso, toIso);
 }
 
 export async function getRecentDecibels(
-  limitMs: number
+  limitMs: number,
 ): Promise<{ offset_ms: number; db: number; ts: string }[]> {
   const sinceIso = new Date(Date.now() - limitMs).toISOString();
   return db.getAllAsync<{ offset_ms: number; db: number; ts: string }>(
     "SELECT ts, offset_ms, db FROM decibel_log WHERE ts >= ? ORDER BY ts",
-    sinceIso
+    sinceIso,
   );
 }
 
