@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import colors from "@/theme/colors";
 import {
@@ -8,14 +8,24 @@ import {
   setSplitIntervalMs,
 } from "@/utils/settingsStore";
 import { getTotalStorageBytes, formatBytes } from "@/utils/storageUsage";
+import {
+  isBatteryOptimizationEnabled,
+  requestIgnoreBatteryOptimizations,
+  getManufacturerGuideUrl,
+  openManufacturerGuide,
+} from "@/utils/batteryOptimization";
 
 const SettingsScreen = () => {
   const [splitInterval, setSplitInterval] = useState<number | null>(getSplitIntervalMs);
   const [storageBytes, setStorageBytes] = useState(0);
+  const [batteryOptEnabled, setBatteryOptEnabled] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       setStorageBytes(getTotalStorageBytes());
+      if (Platform.OS === "android") {
+        isBatteryOptimizationEnabled().then(setBatteryOptEnabled);
+      }
     }, []),
   );
 
@@ -23,6 +33,13 @@ const SettingsScreen = () => {
     setSplitInterval(value);
     setSplitIntervalMs(value);
   };
+
+  const handleRequestBatteryOpt = async () => {
+    await requestIgnoreBatteryOptimizations();
+    setBatteryOptEnabled(await isBatteryOptimizationEnabled());
+  };
+
+  const manufacturerGuideUrl = getManufacturerGuideUrl();
 
   return (
     <View style={styles.container}>
@@ -46,6 +63,28 @@ const SettingsScreen = () => {
 
       <Text style={styles.sectionTitle}>ストレージ使用量</Text>
       <Text style={styles.storageValue}>{formatBytes(storageBytes)}</Text>
+
+      {Platform.OS === "android" && (
+        <>
+          <Text style={styles.sectionTitle}>バッテリー最適化</Text>
+          <Text style={styles.statusText}>
+            {batteryOptEnabled ? "未設定（除外を推奨）" : "除外済み"}
+          </Text>
+          {batteryOptEnabled && (
+            <TouchableOpacity style={styles.actionButton} onPress={handleRequestBatteryOpt}>
+              <Text style={styles.actionButtonText}>バッテリー最適化の除外を設定</Text>
+            </TouchableOpacity>
+          )}
+          {manufacturerGuideUrl != null && (
+            <TouchableOpacity
+              style={[styles.actionButton, styles.secondaryButton]}
+              onPress={openManufacturerGuide}
+            >
+              <Text style={styles.secondaryButtonText}>メーカー別の設定ガイドを開く</Text>
+            </TouchableOpacity>
+          )}
+        </>
+      )}
     </View>
   );
 };
@@ -94,5 +133,33 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     color: colors.textPrimary,
+  },
+  statusText: {
+    fontSize: 15,
+    color: colors.textPrimary,
+    marginBottom: 12,
+  },
+  actionButton: {
+    backgroundColor: colors.accentBlue,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: "center",
+    marginBottom: 8,
+  },
+  actionButtonText: {
+    color: colors.onAccent,
+    fontSize: 15,
+    fontWeight: "bold",
+  },
+  secondaryButton: {
+    backgroundColor: "transparent",
+    borderWidth: 1,
+    borderColor: colors.accentBlue,
+  },
+  secondaryButtonText: {
+    color: colors.accentBlue,
+    fontSize: 15,
+    fontWeight: "bold",
   },
 });

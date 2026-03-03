@@ -3,6 +3,7 @@ import { AppState, Platform, PermissionsAndroid } from "react-native";
 import {
   IOSOutputFormat,
   AudioQuality,
+  getRecordingPermissionsAsync,
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
 } from "expo-audio";
@@ -16,6 +17,7 @@ import {
   clearAllDecibelRows,
 } from "@/utils/decibelBuffer";
 import { startBackgroundTask, stopBackgroundTask } from "@/utils/backgroundTask";
+import { maybeShowBatteryOptimizationAlert } from "@/utils/batteryOptimization";
 
 const AudioModule = requireNativeModule("ExpoAudio");
 
@@ -247,13 +249,18 @@ export const useRecorder = (splitIntervalMs: number | null = 21_600_000) => {
   }, [stopPolling, stopFlushing, flushPending]);
 
   const start = useCallback(async () => {
-    const { granted } = await requestRecordingPermissionsAsync();
-    if (!granted) {
-      setStatus("permission_denied");
-      return;
+    const { granted: alreadyGranted } = await getRecordingPermissionsAsync();
+    if (!alreadyGranted) {
+      const { granted } = await requestRecordingPermissionsAsync();
+      if (!granted) {
+        setStatus("permission_denied");
+        return;
+      }
     }
 
     await requestNotificationPermission();
+    const shouldProceed = await maybeShowBatteryOptimizationAlert();
+    if (!shouldProceed) return;
 
     const recorder = createRecorder();
     recorderRef.current = recorder;
