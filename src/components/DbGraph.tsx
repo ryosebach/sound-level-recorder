@@ -28,16 +28,16 @@ const CURSOR_FONT_SIZE = 11;
 const GRID_COLOR = colors.borderStrong;
 const GRID_LABEL_COLOR = colors.textTertiary;
 
-function formatTimeLabel(ms: number, startEpochMs: number): string {
+const formatTimeLabel = (ms: number, startEpochMs: number): string => {
   const date = new Date(startEpochMs + ms);
   const h = date.getHours();
   const m = date.getMinutes();
   const s = date.getSeconds();
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
+};
 
 /** Pick a nice round time-grid interval (in ms) based on the viewport scale. */
-function pickTimeInterval(msPerViewport: number): number {
+const pickTimeInterval = (msPerViewport: number): number => {
   // Aim for roughly 4-6 labels per viewport
   const target = msPerViewport / 5;
   const candidates = [
@@ -48,9 +48,9 @@ function pickTimeInterval(msPerViewport: number): number {
     if (c >= target) return c;
   }
   return candidates[candidates.length - 1];
-}
+};
 
-export default function DbGraph({
+const DbGraph = ({
   points,
   durationMs,
   currentTimeMs,
@@ -58,7 +58,7 @@ export default function DbGraph({
   height,
   startTimestamp,
   onSeek,
-}: Props) {
+}: Props) => {
   const startEpochMs = useMemo(() => new Date(startTimestamp).getTime(), [startTimestamp]);
   const scrollRef = useRef<ScrollView>(null);
   const isUserScrolling = useRef(false);
@@ -316,4 +316,6 @@ export default function DbGraph({
       </Pressable>
     </ScrollView>
   );
-}
+};
+
+export default DbGraph;

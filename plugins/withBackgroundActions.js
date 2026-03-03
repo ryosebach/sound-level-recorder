@@ -12,7 +12,7 @@ const SERVICE_NAME = "com.asterinet.react.bgactions.RNBackgroundActionsTask";
  * with the correct type, the manifest merger picks up our attributes
  * via tools:replace.
  */
-module.exports = function withBackgroundActions(config) {
+const withBackgroundActions = (config) => {
   return withAndroidManifest(config, (modConfig) => {
     const manifest = modConfig.modResults;
     const application = manifest.manifest.application?.[0];
@@ -36,3 +36,5 @@ module.exports = function withBackgroundActions(config) {
     return modConfig;
   });
 };
+
+module.exports = withBackgroundActions;

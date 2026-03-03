@@ -13,13 +13,13 @@ import colors from "@/theme/colors";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Recordings">;
 
-function formatFileSize(bytes: number): string {
+const formatFileSize = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
+};
 
-export default function RecordingsScreen({ navigation }: Props) {
+const RecordingsScreen = ({ navigation }: Props) => {
   const [files, setFiles] = useState<RecordingFile[]>([]);
   const [selectedUris, setSelectedUris] = useState<Set<string>>(new Set());
 
@@ -148,7 +148,9 @@ export default function RecordingsScreen({ navigation }: Props) {
       )}
     </View>
   );
-}
+};
+
+export default RecordingsScreen;
 
 const styles = StyleSheet.create({
   container: {

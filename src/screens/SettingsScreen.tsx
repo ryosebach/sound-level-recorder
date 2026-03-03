@@ -9,7 +9,7 @@ import {
 } from "@/utils/settingsStore";
 import { getTotalStorageBytes, formatBytes } from "@/utils/storageUsage";
 
-export default function SettingsScreen() {
+const SettingsScreen = () => {
   const [splitInterval, setSplitInterval] = useState<number | null>(getSplitIntervalMs);
   const [storageBytes, setStorageBytes] = useState(0);
 
@@ -48,7 +48,9 @@ export default function SettingsScreen() {
       <Text style={styles.storageValue}>{formatBytes(storageBytes)}</Text>
     </View>
   );
-}
+};
+
+export default SettingsScreen;
 
 const styles = StyleSheet.create({
   container: {

@@ -47,17 +47,17 @@ const DBFS_TO_SPL_OFFSET = 100;
 
 export type RecorderStatus = "idle" | "recording" | "permission_denied";
 
-async function requestNotificationPermission(): Promise<void> {
+const requestNotificationPermission = async (): Promise<void> => {
   if (Platform.OS === "android" && Platform.Version >= 33) {
     await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
   }
-}
+};
 
-function createRecorder() {
+const createRecorder = () => {
   return new AudioModule.AudioRecorder(RECORDING_OPTIONS);
-}
+};
 
-export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
+export const useRecorder = (splitIntervalMs: number | null = 21_600_000) => {
   const [status, setStatus] = useState<RecorderStatus>("idle");
   const [metering, setMetering] = useState<number | undefined>(undefined);
   const [isRecording, setIsRecording] = useState(false);
@@ -320,4 +320,4 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
     start,
     stop,
   };
-}
+};

@@ -4,7 +4,7 @@ export type DecibelPoint = {
   timestamp: string;
 };
 
-export function parseCsv(content: string): DecibelPoint[] {
+export const parseCsv = (content: string): DecibelPoint[] => {
   const lines = content.split("\n");
   const points: DecibelPoint[] = [];
   for (let i = 1; i < lines.length; i++) {
@@ -19,9 +19,9 @@ export function parseCsv(content: string): DecibelPoint[] {
     points.push({ timestamp, offsetMs, dbSpl: Math.max(0, dbfs + 100) });
   }
   return points;
-}
+};
 
-export function downsample(points: DecibelPoint[], maxPoints: number): DecibelPoint[] {
+export const downsample = (points: DecibelPoint[], maxPoints: number): DecibelPoint[] => {
   if (points.length <= maxPoints) return points;
   const result: DecibelPoint[] = [];
   const step = (points.length - 1) / (maxPoints - 1);
@@ -29,4 +29,4 @@ export function downsample(points: DecibelPoint[], maxPoints: number): DecibelPo
     result.push(points[Math.round(i * step)]);
   }
   return result;
-}
+};

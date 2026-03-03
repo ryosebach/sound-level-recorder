@@ -25,7 +25,7 @@ const GRAPH_HEIGHT = 160;
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
-export default function HomeScreen({ navigation }: Props) {
+const HomeScreen = ({ navigation }: Props) => {
   const { width: screenWidth } = useWindowDimensions();
   const [splitIntervalMs, setSplitIntervalMs] = useState<number | null>(getSplitIntervalMs);
 
@@ -144,7 +144,9 @@ export default function HomeScreen({ navigation }: Props) {
       <StatusBar style="light" />
     </View>
   );
-}
+};
+
+export default HomeScreen;
 
 const styles = StyleSheet.create({
   container: {

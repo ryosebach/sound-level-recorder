@@ -11,7 +11,7 @@ import type { RootStackParamList } from "../../App";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Playback">;
 
-export default function PlaybackScreen({ route }: Props) {
+const PlaybackScreen = ({ route }: Props) => {
   const { uri, name } = route.params;
 
   const player = useAudioPlayer({ uri }, { updateInterval: 200 });
@@ -129,7 +129,9 @@ export default function PlaybackScreen({ route }: Props) {
       </View>
     </View>
   );
-}
+};
+
+export default PlaybackScreen;
 
 const styles = StyleSheet.create({
   container: {
