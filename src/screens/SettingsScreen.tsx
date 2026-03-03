@@ -13,20 +13,30 @@ import {
   getManufacturerGuideUrl,
   openManufacturerGuide,
 } from "@/utils/batteryOptimization";
+import { isIgnoringBatteryOptimizations } from "../../modules/battery-optimization/src";
 
 const SettingsScreen = () => {
   const [splitInterval, setSplitInterval] = useState<number | null>(getSplitIntervalMs);
   const [storageBytes, setStorageBytes] = useState(0);
+  const [batteryOptExcluded, setBatteryOptExcluded] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       setStorageBytes(getTotalStorageBytes());
+      if (Platform.OS === "android") {
+        setBatteryOptExcluded(isIgnoringBatteryOptimizations());
+      }
     }, []),
   );
 
   const handleSelectInterval = (value: number | null) => {
     setSplitInterval(value);
     setSplitIntervalMs(value);
+  };
+
+  const handleRequestBatteryOpt = async () => {
+    await requestIgnoreBatteryOptimizations();
+    setBatteryOptExcluded(isIgnoringBatteryOptimizations());
   };
 
   const manufacturerGuideUrl = getManufacturerGuideUrl();
@@ -57,12 +67,14 @@ const SettingsScreen = () => {
       {Platform.OS === "android" && (
         <>
           <Text style={styles.sectionTitle}>バッテリー最適化</Text>
-          <TouchableOpacity
-            style={styles.actionButton}
-            onPress={requestIgnoreBatteryOptimizations}
-          >
-            <Text style={styles.actionButtonText}>バッテリー最適化の除外を設定</Text>
-          </TouchableOpacity>
+          <Text style={styles.statusText}>
+            {batteryOptExcluded ? "除外済み" : "未設定（除外を推奨）"}
+          </Text>
+          {!batteryOptExcluded && (
+            <TouchableOpacity style={styles.actionButton} onPress={handleRequestBatteryOpt}>
+              <Text style={styles.actionButtonText}>バッテリー最適化の除外を設定</Text>
+            </TouchableOpacity>
+          )}
           {manufacturerGuideUrl != null && (
             <TouchableOpacity
               style={[styles.actionButton, styles.secondaryButton]}
@@ -123,6 +135,11 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: "bold",
     color: colors.textPrimary,
+  },
+  statusText: {
+    fontSize: 15,
+    color: colors.textPrimary,
+    marginBottom: 12,
   },
   actionButton: {
     backgroundColor: colors.accentBlue,

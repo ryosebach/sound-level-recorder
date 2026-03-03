@@ -1,6 +1,6 @@
 import { Alert, Linking, Platform } from "react-native";
 import * as IntentLauncher from "expo-intent-launcher";
-import { isBatteryOptDismissed, setBatteryOptDismissed } from "@/utils/settingsStore";
+import { isIgnoringBatteryOptimizations } from "../../modules/battery-optimization/src";
 
 const MANUFACTURER_GUIDE_MAP: Record<string, string> = {
   samsung: "https://dontkillmyapp.com/samsung",
@@ -53,15 +53,11 @@ export const showBatteryOptimizationAlert = (): Promise<void> => {
         {
           text: "後で",
           style: "cancel",
-          onPress: () => {
-            setBatteryOptDismissed();
-            resolve();
-          },
+          onPress: () => resolve(),
         },
         {
           text: "設定を開く",
           onPress: async () => {
-            setBatteryOptDismissed();
             await requestIgnoreBatteryOptimizations();
             resolve();
           },
@@ -73,6 +69,6 @@ export const showBatteryOptimizationAlert = (): Promise<void> => {
 
 export const maybeShowBatteryOptimizationAlert = async (): Promise<void> => {
   if (Platform.OS !== "android") return;
-  if (isBatteryOptDismissed()) return;
+  if (isIgnoringBatteryOptimizations()) return;
   await showBatteryOptimizationAlert();
 };
