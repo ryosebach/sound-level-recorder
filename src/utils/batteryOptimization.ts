@@ -65,8 +65,11 @@ const showBatteryOptimizationAlert = (): Promise<boolean> => {
         {
           text: "設定を開く",
           onPress: () => {
-            requestIgnoreBatteryOptimizations();
             resolve(false);
+            // Alert 閉じアニメーション完了後に Intent を起動
+            setTimeout(() => {
+              requestIgnoreBatteryOptimizations();
+            }, 500);
           },
         },
       ],
