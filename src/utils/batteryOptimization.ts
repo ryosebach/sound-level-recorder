@@ -28,9 +28,7 @@ export const requestIgnoreBatteryOptimizations = async (): Promise<void> => {
 
 export const getManufacturerGuideUrl = (): string | null => {
   if (Platform.OS !== "android") return null;
-  const brand = (
-    (Platform.constants as Record<string, unknown>).Brand as string | undefined
-  )
+  const brand = ((Platform.constants as Record<string, unknown>).Brand as string | undefined)
     ?.toLowerCase()
     ?.trim();
   if (!brand) return null;

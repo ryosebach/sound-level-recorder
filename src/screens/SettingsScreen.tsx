@@ -80,9 +80,7 @@ const SettingsScreen = () => {
               style={[styles.actionButton, styles.secondaryButton]}
               onPress={openManufacturerGuide}
             >
-              <Text style={styles.secondaryButtonText}>
-                メーカー別の設定ガイドを開く
-              </Text>
+              <Text style={styles.secondaryButtonText}>メーカー別の設定ガイドを開く</Text>
             </TouchableOpacity>
           )}
         </>
