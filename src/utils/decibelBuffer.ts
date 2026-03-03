@@ -19,16 +19,20 @@ export function insertDecibelBatch(
   rows: { ts: string; offsetMs: number; db: number }[]
 ): void {
   if (rows.length === 0) return;
-  db.withTransactionSync(() => {
-    for (const row of rows) {
-      db.runSync(
-        "INSERT INTO decibel_log (ts, offset_ms, db) VALUES (?, ?, ?)",
-        row.ts,
-        row.offsetMs,
-        row.db
-      );
-    }
-  });
+  try {
+    db.withTransactionSync(() => {
+      for (const row of rows) {
+        db.runSync(
+          "INSERT INTO decibel_log (ts, offset_ms, db) VALUES (?, ?, ?)",
+          row.ts,
+          row.offsetMs,
+          row.db
+        );
+      }
+    });
+  } catch {
+    // Native DB handle may be reclaimed by OS during long background sessions
+  }
 }
 
 /** @deprecated Use insertDecibelBatch for better performance */

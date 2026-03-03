@@ -49,8 +49,6 @@ export default function HomeScreen({ navigation }: Props) {
 
   const [livePoints, setLivePoints] = useState<DecibelPoint[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval>>(undefined);
-  // Track when the graph was last reset (app resume) to avoid querying old data
-  const graphOriginRef = useRef<number>(Date.now());
   // Guard against overlapping async polls
   const pollingInFlightRef = useRef(false);
 
@@ -70,11 +68,7 @@ export default function HomeScreen({ navigation }: Props) {
       if (pollingInFlightRef.current) return;
       pollingInFlightRef.current = true;
       try {
-        // Only query data since the graph was reset (or up to LIVE_WINDOW_MS)
-        const elapsed = Date.now() - graphOriginRef.current;
-        const windowMs = Math.min(LIVE_WINDOW_MS, elapsed);
-        if (windowMs < 500) return; // too early, skip
-        const rows = await getRecentDecibels(windowMs);
+        const rows = await getRecentDecibels(LIVE_WINDOW_MS);
         const points: DecibelPoint[] = rows.map((r) => ({
           timestamp: r.ts,
           offsetMs: r.offset_ms,
@@ -88,9 +82,7 @@ export default function HomeScreen({ navigation }: Props) {
 
     const startGraphPolling = () => {
       if (timerRef.current) clearInterval(timerRef.current);
-      graphOriginRef.current = Date.now();
-      setLivePoints([]);
-      // Delay start to avoid blocking UI on sleep resume
+      poll();
       timerRef.current = setInterval(poll, 2000);
     };
 
