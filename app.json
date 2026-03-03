@@ -16,9 +16,7 @@
       "bundleIdentifier": "com.ryosebach.soundlevelrecorder",
       "infoPlist": {
         "NSMicrophoneUsageDescription": "騒音レベルの計測と録音のためにマイクを使用します",
-        "UIBackgroundModes": [
-          "audio"
-        ]
+        "UIBackgroundModes": ["audio"]
       }
     },
     "android": {

@@ -16,7 +16,7 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-export default function App() {
+const App = () => {
   return (
     <NavigationContainer>
       <Stack.Navigator
@@ -34,9 +34,7 @@ export default function App() {
             title: "Sound Level Recorder",
             headerRight: () => (
               <TouchableOpacity onPress={() => navigation.navigate("Settings")}>
-                <Text style={{ color: colors.textPrimary, fontSize: 22 }}>
-                  ⚙
-                </Text>
+                <Text style={{ color: colors.textPrimary, fontSize: 22 }}>⚙</Text>
               </TouchableOpacity>
             ),
           })}
@@ -46,17 +44,11 @@ export default function App() {
           component={RecordingsScreen}
           options={{ title: "ファイル一覧" }}
         />
-        <Stack.Screen
-          name="Playback"
-          component={PlaybackScreen}
-          options={{ title: "再生" }}
-        />
-        <Stack.Screen
-          name="Settings"
-          component={SettingsScreen}
-          options={{ title: "設定" }}
-        />
+        <Stack.Screen name="Playback" component={PlaybackScreen} options={{ title: "再生" }} />
+        <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: "設定" }} />
       </Stack.Navigator>
     </NavigationContainer>
   );
-}
+};
+
+export default App;

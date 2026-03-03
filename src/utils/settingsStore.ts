@@ -6,7 +6,7 @@ db.execSync(
   `CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
     value TEXT NOT NULL
-  )`
+  )`,
 );
 
 const KEY_SPLIT_INTERVAL = "split_interval_ms";
@@ -28,20 +28,20 @@ export const SPLIT_INTERVAL_OPTIONS: SplitIntervalOption[] = [
 
 const DEFAULT_SPLIT_INTERVAL_MS = 21_600_000; // 6 hours
 
-export function getSplitIntervalMs(): number | null {
+export const getSplitIntervalMs = (): number | null => {
   const row = db.getFirstSync<{ value: string }>(
     "SELECT value FROM settings WHERE key = ?",
-    KEY_SPLIT_INTERVAL
+    KEY_SPLIT_INTERVAL,
   );
   if (row == null) return DEFAULT_SPLIT_INTERVAL_MS;
   if (row.value === "null") return null;
   return Number(row.value);
-}
+};
 
-export function setSplitIntervalMs(value: number | null): void {
+export const setSplitIntervalMs = (value: number | null): void => {
   db.runSync(
     "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
     KEY_SPLIT_INTERVAL,
-    String(value)
+    String(value),
   );
-}
+};

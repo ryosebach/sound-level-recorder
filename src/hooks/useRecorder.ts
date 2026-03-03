@@ -8,21 +8,14 @@ import {
 } from "expo-audio";
 import type { RecorderState } from "expo-audio";
 import { requireNativeModule } from "expo-modules-core";
-import {
-  moveRecording,
-  getRecordingUri,
-  writeDecibelCsv,
-} from "@/utils/fileManager";
+import { moveRecording, getRecordingUri, writeDecibelCsv } from "@/utils/fileManager";
 import {
   insertDecibelBatch,
   exportDecibelCsv,
   deleteDecibelRows,
   clearAllDecibelRows,
 } from "@/utils/decibelBuffer";
-import {
-  startBackgroundTask,
-  stopBackgroundTask,
-} from "@/utils/backgroundTask";
+import { startBackgroundTask, stopBackgroundTask } from "@/utils/backgroundTask";
 
 const AudioModule = requireNativeModule("ExpoAudio");
 
@@ -54,19 +47,17 @@ const DBFS_TO_SPL_OFFSET = 100;
 
 export type RecorderStatus = "idle" | "recording" | "permission_denied";
 
-async function requestNotificationPermission(): Promise<void> {
+const requestNotificationPermission = async (): Promise<void> => {
   if (Platform.OS === "android" && Platform.Version >= 33) {
-    await PermissionsAndroid.request(
-      PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS
-    );
+    await PermissionsAndroid.request(PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS);
   }
-}
+};
 
-function createRecorder() {
+const createRecorder = () => {
   return new AudioModule.AudioRecorder(RECORDING_OPTIONS);
-}
+};
 
-export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
+export const useRecorder = (splitIntervalMs: number | null = 21_600_000) => {
   const [status, setStatus] = useState<RecorderStatus>("idle");
   const [metering, setMetering] = useState<number | undefined>(undefined);
   const [isRecording, setIsRecording] = useState(false);
@@ -86,9 +77,7 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
   // ISO timestamp when the current segment started (for SQLite range queries)
   const segmentStartIsoRef = useRef<string>("");
   // Memory buffer for batched SQLite inserts
-  const pendingInserts = useRef<{ ts: string; offsetMs: number; db: number }[]>(
-    []
-  );
+  const pendingInserts = useRef<{ ts: string; offsetMs: number; db: number }[]>([]);
   const flushRef = useRef<ReturnType<typeof setInterval> | null>(null);
   // Refs for background-safe split: polling callback can access latest values
   const splitIntervalMsRef = useRef(splitIntervalMs);
@@ -156,11 +145,7 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
           }
           // Split check — runs in background too (via react-native-background-actions)
           const interval = splitIntervalMsRef.current;
-          if (
-            !isSplittingRef.current &&
-            interval !== null &&
-            elapsed >= interval
-          ) {
+          if (!isSplittingRef.current && interval !== null && elapsed >= interval) {
             splitRecordingRef.current();
           }
         } catch {
@@ -168,7 +153,7 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
         }
       }, POLLING_INTERVAL_MS);
     },
-    [stopPolling]
+    [stopPolling],
   );
 
   const splitRecording = useCallback(async () => {
@@ -335,4 +320,4 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
     start,
     stop,
   };
-}
+};

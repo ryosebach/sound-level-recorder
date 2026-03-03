@@ -9,18 +9,18 @@ export type RecordingFile = {
   createdAt: number | null;
 };
 
-function getRecordingDir(): Directory {
+const getRecordingDir = (): Directory => {
   return new Directory(Paths.document, RECORDINGS_DIR);
-}
+};
 
-export function ensureRecordingDir(): void {
+export const ensureRecordingDir = (): void => {
   const dir = getRecordingDir();
   if (!dir.exists) {
     dir.create();
   }
-}
+};
 
-function formatTimestamp(date: Date): string {
+const formatTimestamp = (date: Date): string => {
   const pad = (n: number) => String(n).padStart(2, "0");
   const y = date.getFullYear();
   const mo = pad(date.getMonth() + 1);
@@ -29,33 +29,30 @@ function formatTimestamp(date: Date): string {
   const mi = pad(date.getMinutes());
   const s = pad(date.getSeconds());
   return `${y}-${mo}-${d}_${h}-${mi}-${s}`;
-}
+};
 
-export function moveRecording(sourceUri: string): string {
+export const moveRecording = (sourceUri: string): string => {
   ensureRecordingDir();
   const filename = `recording_${formatTimestamp(new Date())}.m4a`;
   const dest = new File(getRecordingDir(), filename);
   const src = new File(sourceUri);
   src.move(dest);
   return filename;
-}
+};
 
-export function getRecordingUri(filename: string): string {
+export const getRecordingUri = (filename: string): string => {
   return new File(getRecordingDir(), filename).uri;
-}
+};
 
-export function writeDecibelCsv(
-  csvContent: string,
-  audioFilename: string
-): string {
+export const writeDecibelCsv = (csvContent: string, audioFilename: string): string => {
   ensureRecordingDir();
   const csvFilename = audioFilename.replace(/\.m4a$/, ".csv");
   const dest = new File(getRecordingDir(), csvFilename);
   dest.write(csvContent);
   return dest.uri;
-}
+};
 
-export function listRecordings(): RecordingFile[] {
+export const listRecordings = (): RecordingFile[] => {
   const dir = getRecordingDir();
   if (!dir.exists) {
     return [];
@@ -77,9 +74,9 @@ export function listRecordings(): RecordingFile[] {
   // Sort by name descending (newest first, since names contain timestamps)
   files.sort((a, b) => b.name.localeCompare(a.name));
   return files;
-}
+};
 
-export function deleteRecording(uri: string): void {
+export const deleteRecording = (uri: string): void => {
   const file = new File(uri);
   if (file.exists) {
     file.delete();
@@ -89,9 +86,9 @@ export function deleteRecording(uri: string): void {
   if (csvFile.exists) {
     csvFile.delete();
   }
-}
+};
 
-export function deleteAllRecordings(): void {
+export const deleteAllRecordings = (): void => {
   const dir = getRecordingDir();
   if (!dir.exists) {
     return;
@@ -102,4 +99,4 @@ export function deleteAllRecordings(): void {
       entry.delete();
     }
   }
-}
+};

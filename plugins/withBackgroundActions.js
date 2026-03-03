@@ -1,7 +1,6 @@
 const { withAndroidManifest } = require("expo/config-plugins");
 
-const SERVICE_NAME =
-  "com.asterinet.react.bgactions.RNBackgroundActionsTask";
+const SERVICE_NAME = "com.asterinet.react.bgactions.RNBackgroundActionsTask";
 
 /**
  * Expo config plugin that explicitly declares the RNBackgroundActionsTask
@@ -13,20 +12,18 @@ const SERVICE_NAME =
  * with the correct type, the manifest merger picks up our attributes
  * via tools:replace.
  */
-module.exports = function withBackgroundActions(config) {
-  return withAndroidManifest(config, (config) => {
-    const manifest = config.modResults;
+const withBackgroundActions = (config) => {
+  return withAndroidManifest(config, (modConfig) => {
+    const manifest = modConfig.modResults;
     const application = manifest.manifest.application?.[0];
-    if (!application) return config;
+    if (!application) return modConfig;
 
     if (!application.service) {
       application.service = [];
     }
 
     // Remove any existing entry to avoid duplicates
-    application.service = application.service.filter(
-      (s) => s.$?.["android:name"] !== SERVICE_NAME
-    );
+    application.service = application.service.filter((s) => s.$?.["android:name"] !== SERVICE_NAME);
 
     // Add the service with foregroundServiceType
     application.service.push({
@@ -36,6 +33,8 @@ module.exports = function withBackgroundActions(config) {
       },
     });
 
-    return config;
+    return modConfig;
   });
 };
+
+module.exports = withBackgroundActions;

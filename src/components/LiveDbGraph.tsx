@@ -22,20 +22,15 @@ const LABEL_FONT_SIZE = 10;
 const GRID_COLOR = colors.borderStrong;
 const GRID_LABEL_COLOR = colors.textTertiary;
 
-function formatTimeLabel(epochMs: number): string {
+const formatTimeLabel = (epochMs: number): string => {
   const date = new Date(epochMs);
   const h = date.getHours();
   const m = date.getMinutes();
   const s = date.getSeconds();
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
+};
 
-export default function LiveDbGraph({
-  points,
-  windowMs,
-  viewportWidth,
-  height,
-}: Props) {
+const LiveDbGraph = ({ points, windowMs, viewportWidth, height }: Props) => {
   const plotWidth = viewportWidth - MARGIN_LEFT;
   const plotHeight = height - MARGIN_TOP - MARGIN_BOTTOM;
 
@@ -154,9 +149,9 @@ export default function LiveDbGraph({
       ))}
 
       {/* Data line */}
-      {pathD !== "" && (
-        <Path d={pathD} fill="none" stroke={colors.accentBlue} strokeWidth={1.5} />
-      )}
+      {pathD !== "" && <Path d={pathD} fill="none" stroke={colors.accentBlue} strokeWidth={1.5} />}
     </Svg>
   );
-}
+};
+
+export default LiveDbGraph;

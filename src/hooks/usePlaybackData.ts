@@ -7,10 +7,7 @@ type PlaybackDataResult =
   | { status: "error"; points: null; durationMs: 0; startTimestamp: "" }
   | { status: "ready"; points: DecibelPoint[]; durationMs: number; startTimestamp: string };
 
-export function usePlaybackData(
-  audioUri: string,
-  maxPoints: number
-): PlaybackDataResult {
+export const usePlaybackData = (audioUri: string, maxPoints: number): PlaybackDataResult => {
   const [result, setResult] = useState<PlaybackDataResult>({
     status: "loading",
     points: null,
@@ -55,4 +52,4 @@ export function usePlaybackData(
   }, [audioUri, maxPoints]);
 
   return result;
-}
+};
