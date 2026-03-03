@@ -79,6 +79,8 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
   const recorderRef = useRef<any>(null);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const isSplittingRef = useRef(false);
+  // Track foreground/background to skip setState in background
+  const appActiveRef = useRef(AppState.currentState === "active");
   // Wall-clock timestamp when the current segment started recording
   const segmentStartRef = useRef<number>(0);
   // ISO timestamp when the current segment started (for SQLite range queries)
@@ -137,10 +139,14 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
         try {
           const now = Date.now();
           const newState: RecorderState = recorder.getStatus();
-          setMetering(newState.metering);
-          setIsRecording(newState.isRecording);
           const elapsed = now - segmentStartRef.current;
-          setSegmentElapsedMillis(elapsed);
+          // Only update React state when in foreground to avoid
+          // queuing thousands of bridge messages during background
+          if (appActiveRef.current) {
+            setMetering(newState.metering);
+            setIsRecording(newState.isRecording);
+            setSegmentElapsedMillis(elapsed);
+          }
           if (newState.metering != null) {
             pendingInserts.current.push({
               ts: new Date(now).toISOString(),
@@ -220,8 +226,11 @@ export function useRecorder(splitIntervalMs: number | null = 21_600_000) {
   useEffect(() => {
     let resumeTimeoutId: ReturnType<typeof setTimeout> | null = null;
     const subscription = AppState.addEventListener("change", (nextAppState) => {
+      const isActive = nextAppState === "active";
+      appActiveRef.current = isActive;
       const recorder = recorderRef.current;
-      if (nextAppState === "active" && recorder) {
+      if (isActive && recorder) {
+        // Sync latest values into React state on resume
         setSegmentElapsedMillis(Date.now() - segmentStartRef.current);
         try {
           const s: RecorderState = recorder.getStatus();

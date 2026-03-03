@@ -19,16 +19,20 @@ export function insertDecibelBatch(
   rows: { ts: string; offsetMs: number; db: number }[]
 ): void {
   if (rows.length === 0) return;
-  db.withTransactionSync(() => {
-    for (const row of rows) {
-      db.runSync(
-        "INSERT INTO decibel_log (ts, offset_ms, db) VALUES (?, ?, ?)",
-        row.ts,
-        row.offsetMs,
-        row.db
-      );
-    }
-  });
+  try {
+    db.withTransactionSync(() => {
+      for (const row of rows) {
+        db.runSync(
+          "INSERT INTO decibel_log (ts, offset_ms, db) VALUES (?, ?, ?)",
+          row.ts,
+          row.offsetMs,
+          row.db
+        );
+      }
+    });
+  } catch {
+    // Native DB handle may be reclaimed by OS during long background sessions
+  }
 }
 
 /** @deprecated Use insertDecibelBatch for better performance */
@@ -67,11 +71,11 @@ export async function deleteDecibelRows(fromIso: string, toIso: string): Promise
   );
 }
 
-export function getRecentDecibels(
+export async function getRecentDecibels(
   limitMs: number
-): { offset_ms: number; db: number; ts: string }[] {
+): Promise<{ offset_ms: number; db: number; ts: string }[]> {
   const sinceIso = new Date(Date.now() - limitMs).toISOString();
-  return db.getAllSync<{ offset_ms: number; db: number; ts: string }>(
+  return db.getAllAsync<{ offset_ms: number; db: number; ts: string }>(
     "SELECT ts, offset_ms, db FROM decibel_log WHERE ts >= ? ORDER BY ts",
     sinceIso
   );
