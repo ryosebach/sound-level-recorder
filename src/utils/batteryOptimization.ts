@@ -1,6 +1,6 @@
 import { Alert, Linking, Platform } from "react-native";
 import * as IntentLauncher from "expo-intent-launcher";
-import { isIgnoringBatteryOptimizations } from "../../modules/battery-optimization/src";
+import { isIgnoringBatteryOptimizations } from "battery-optimization";
 
 const MANUFACTURER_GUIDE_MAP: Record<string, string> = {
   samsung: "https://dontkillmyapp.com/samsung",

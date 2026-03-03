@@ -13,7 +13,7 @@ import {
   getManufacturerGuideUrl,
   openManufacturerGuide,
 } from "@/utils/batteryOptimization";
-import { isIgnoringBatteryOptimizations } from "../../modules/battery-optimization/src";
+import { isIgnoringBatteryOptimizations } from "battery-optimization";
 
 const SettingsScreen = () => {
   const [splitInterval, setSplitInterval] = useState<number | null>(getSplitIntervalMs);
