@@ -3,6 +3,7 @@ import { AppState, Platform, PermissionsAndroid } from "react-native";
 import {
   IOSOutputFormat,
   AudioQuality,
+  getRecordingPermissionsAsync,
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
 } from "expo-audio";
@@ -248,10 +249,13 @@ export const useRecorder = (splitIntervalMs: number | null = 21_600_000) => {
   }, [stopPolling, stopFlushing, flushPending]);
 
   const start = useCallback(async () => {
-    const { granted } = await requestRecordingPermissionsAsync();
-    if (!granted) {
-      setStatus("permission_denied");
-      return;
+    const { granted: alreadyGranted } = await getRecordingPermissionsAsync();
+    if (!alreadyGranted) {
+      const { granted } = await requestRecordingPermissionsAsync();
+      if (!granted) {
+        setStatus("permission_denied");
+        return;
+      }
     }
 
     await requestNotificationPermission();
