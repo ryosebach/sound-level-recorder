@@ -47,7 +47,11 @@ export const openManufacturerGuide = async (): Promise<void> => {
   }
 };
 
-export const showBatteryOptimizationAlert = (): Promise<void> => {
+/**
+ * Returns true if the user chose "後で" (proceed with recording),
+ * false if the user chose "設定を開く" (recording should be skipped).
+ */
+const showBatteryOptimizationAlert = (): Promise<boolean> => {
   return new Promise((resolve) => {
     Alert.alert(
       "バッテリー最適化の除外",
@@ -56,23 +60,28 @@ export const showBatteryOptimizationAlert = (): Promise<void> => {
         {
           text: "後で",
           style: "cancel",
-          onPress: () => resolve(),
+          onPress: () => resolve(true),
         },
         {
           text: "設定を開く",
-          onPress: async () => {
-            await requestIgnoreBatteryOptimizations();
-            resolve();
+          onPress: () => {
+            requestIgnoreBatteryOptimizations();
+            resolve(false);
           },
         },
       ],
+      { cancelable: false },
     );
   });
 };
 
-export const maybeShowBatteryOptimizationAlert = async (): Promise<void> => {
-  if (Platform.OS !== "android") return;
+/**
+ * Returns true if recording should proceed, false if the user
+ * chose to open battery settings (recording should be skipped).
+ */
+export const maybeShowBatteryOptimizationAlert = async (): Promise<boolean> => {
+  if (Platform.OS !== "android") return true;
   const optimizationEnabled = await isBatteryOptimizationEnabled();
-  if (!optimizationEnabled) return;
-  await showBatteryOptimizationAlert();
+  if (!optimizationEnabled) return true;
+  return showBatteryOptimizationAlert();
 };

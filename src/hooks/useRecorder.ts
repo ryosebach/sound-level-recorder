@@ -255,7 +255,8 @@ export const useRecorder = (splitIntervalMs: number | null = 21_600_000) => {
     }
 
     await requestNotificationPermission();
-    await maybeShowBatteryOptimizationAlert();
+    const shouldProceed = await maybeShowBatteryOptimizationAlert();
+    if (!shouldProceed) return;
 
     const recorder = createRecorder();
     recorderRef.current = recorder;
