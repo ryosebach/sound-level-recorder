@@ -16,6 +16,7 @@ import {
   clearAllDecibelRows,
 } from "@/utils/decibelBuffer";
 import { startBackgroundTask, stopBackgroundTask } from "@/utils/backgroundTask";
+import { maybeShowBatteryOptimizationAlert } from "@/utils/batteryOptimization";
 
 const AudioModule = requireNativeModule("ExpoAudio");
 
@@ -254,6 +255,7 @@ export const useRecorder = (splitIntervalMs: number | null = 21_600_000) => {
     }
 
     await requestNotificationPermission();
+    await maybeShowBatteryOptimizationAlert();
 
     const recorder = createRecorder();
     recorderRef.current = recorder;

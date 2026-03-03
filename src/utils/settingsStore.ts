@@ -10,6 +10,7 @@ db.execSync(
 );
 
 const KEY_SPLIT_INTERVAL = "split_interval_ms";
+const KEY_BATTERY_OPT_DISMISSED = "battery_opt_dismissed";
 
 export type SplitIntervalOption = {
   label: string;
@@ -43,5 +44,21 @@ export const setSplitIntervalMs = (value: number | null): void => {
     "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
     KEY_SPLIT_INTERVAL,
     String(value),
+  );
+};
+
+export const isBatteryOptDismissed = (): boolean => {
+  const row = db.getFirstSync<{ value: string }>(
+    "SELECT value FROM settings WHERE key = ?",
+    KEY_BATTERY_OPT_DISMISSED,
+  );
+  return row?.value === "1";
+};
+
+export const setBatteryOptDismissed = (): void => {
+  db.runSync(
+    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+    KEY_BATTERY_OPT_DISMISSED,
+    "1",
   );
 };
