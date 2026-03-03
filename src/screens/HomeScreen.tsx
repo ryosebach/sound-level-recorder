@@ -51,50 +51,70 @@ export default function HomeScreen({ navigation }: Props) {
   const timerRef = useRef<ReturnType<typeof setInterval>>(undefined);
   // Track when the graph was last reset (app resume) to avoid querying old data
   const graphOriginRef = useRef<number>(Date.now());
-
-  // Reset graph on foreground resume to avoid heavy SQLite queries
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (next) => {
-      if (next === "active") {
-        graphOriginRef.current = Date.now();
-        setLivePoints([]);
-      }
-    });
-    return () => subscription.remove();
-  }, []);
+  // Guard against overlapping async polls
+  const pollingInFlightRef = useRef(false);
 
   useEffect(() => {
     if (!isRecording) {
-      if (timerRef.current) clearInterval(timerRef.current);
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = undefined;
+      }
       return;
     }
 
     const graphWidth = screenWidth - 48; // paddingHorizontal 24 * 2
     const maxPoints = Math.floor(graphWidth / 2);
 
-    const poll = () => {
-      // Only query data since the graph was reset (or up to LIVE_WINDOW_MS)
-      const elapsed = Date.now() - graphOriginRef.current;
-      const windowMs = Math.min(LIVE_WINDOW_MS, elapsed);
-      if (windowMs < 500) return; // too early, skip
-      const rows = getRecentDecibels(windowMs);
-      const points: DecibelPoint[] = rows.map((r) => ({
-        timestamp: r.ts,
-        offsetMs: r.offset_ms,
-        dbSpl: Math.max(0, r.db + 100),
-      }));
-      setLivePoints(downsample(points, maxPoints));
+    const poll = async () => {
+      if (pollingInFlightRef.current) return;
+      pollingInFlightRef.current = true;
+      try {
+        // Only query data since the graph was reset (or up to LIVE_WINDOW_MS)
+        const elapsed = Date.now() - graphOriginRef.current;
+        const windowMs = Math.min(LIVE_WINDOW_MS, elapsed);
+        if (windowMs < 500) return; // too early, skip
+        const rows = await getRecentDecibels(windowMs);
+        const points: DecibelPoint[] = rows.map((r) => ({
+          timestamp: r.ts,
+          offsetMs: r.offset_ms,
+          dbSpl: Math.max(0, r.db + 100),
+        }));
+        setLivePoints(downsample(points, maxPoints));
+      } finally {
+        pollingInFlightRef.current = false;
+      }
     };
 
-    // Delay start to avoid blocking UI on sleep resume
-    const delayId = setTimeout(() => {
-      poll();
-      timerRef.current = setInterval(poll, 1000);
-    }, 500);
+    const startGraphPolling = () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+      graphOriginRef.current = Date.now();
+      setLivePoints([]);
+      // Delay start to avoid blocking UI on sleep resume
+      timerRef.current = setInterval(poll, 2000);
+    };
+
+    // Start polling initially
+    startGraphPolling();
+
+    // Stop polling in background, restart on foreground resume
+    const subscription = AppState.addEventListener("change", (next) => {
+      if (next === "active") {
+        startGraphPolling();
+      } else {
+        if (timerRef.current) {
+          clearInterval(timerRef.current);
+          timerRef.current = undefined;
+        }
+      }
+    });
 
     return () => {
-      clearTimeout(delayId);
-      if (timerRef.current) clearInterval(timerRef.current);
+      subscription.remove();
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+        timerRef.current = undefined;
+      }
     };
   }, [isRecording, screenWidth]);
 

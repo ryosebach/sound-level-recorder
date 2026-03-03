@@ -67,11 +67,11 @@ export async function deleteDecibelRows(fromIso: string, toIso: string): Promise
   );
 }
 
-export function getRecentDecibels(
+export async function getRecentDecibels(
   limitMs: number
-): { offset_ms: number; db: number; ts: string }[] {
+): Promise<{ offset_ms: number; db: number; ts: string }[]> {
   const sinceIso = new Date(Date.now() - limitMs).toISOString();
-  return db.getAllSync<{ offset_ms: number; db: number; ts: string }>(
+  return db.getAllAsync<{ offset_ms: number; db: number; ts: string }>(
     "SELECT ts, offset_ms, db FROM decibel_log WHERE ts >= ? ORDER BY ts",
     sinceIso
   );
