@@ -10,6 +10,12 @@ import {
   type RecordingFile,
 } from "@/utils/fileManager";
 import colors from "@/theme/colors";
+import { uploadManual, syncDriveStatus } from "@/services/uploadManager";
+import {
+  getUploadStatusForFile,
+  type FileUploadStatus,
+} from "@/services/uploadQueue";
+import { isSignedIn } from "@/services/googleAuth";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Recordings">;
 
@@ -19,13 +25,38 @@ const formatFileSize = (bytes: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const UPLOAD_STATUS_LABELS: Record<FileUploadStatus, string> = {
+  not_queued: "",
+  pending: "待機中",
+  uploading: "アップロード中",
+  uploaded: "アップロード済",
+  failed: "失敗",
+};
+
+const UPLOAD_STATUS_COLORS: Record<FileUploadStatus, string> = {
+  not_queued: colors.textMuted,
+  pending: colors.accentOrange,
+  uploading: colors.accentBlue,
+  uploaded: colors.accentGreen,
+  failed: colors.accentRed,
+};
+
 const RecordingsScreen = ({ navigation }: Props) => {
   const [files, setFiles] = useState<RecordingFile[]>([]);
   const [selectedUris, setSelectedUris] = useState<Set<string>>(new Set());
+  const [uploadStatuses, setUploadStatuses] = useState<Map<string, FileUploadStatus>>(new Map());
+  const [isUploading, setIsUploading] = useState(false);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const loadFiles = useCallback(() => {
-    setFiles(listRecordings());
+    const recordings = listRecordings();
+    setFiles(recordings);
     setSelectedUris(new Set());
+    const statuses = new Map<string, FileUploadStatus>();
+    for (const f of recordings) {
+      statuses.set(f.name, getUploadStatusForFile(f.name));
+    }
+    setUploadStatuses(statuses);
   }, []);
 
   useFocusEffect(loadFiles);
@@ -74,12 +105,54 @@ const RecordingsScreen = ({ navigation }: Props) => {
     ]);
   };
 
+  const handleUploadSelected = async () => {
+    if (selectedUris.size === 0) return;
+    if (!isSignedIn()) {
+      Alert.alert("サインインが必要", "設定画面から Google アカウントにサインインしてください");
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const audioFilenames = files
+        .filter((f) => selectedUris.has(f.uri))
+        .map((f) => f.name);
+      await uploadManual(audioFilenames);
+      loadFiles();
+    } catch (e) {
+      Alert.alert("アップロードエラー", e instanceof Error ? e.message : "不明なエラー");
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleSyncStatus = async () => {
+    if (!isSignedIn()) {
+      Alert.alert("サインインが必要", "設定画面から Google アカウントにサインインしてください");
+      return;
+    }
+    setIsSyncing(true);
+    try {
+      const resetCount = await syncDriveStatus();
+      loadFiles();
+      if (resetCount > 0) {
+        Alert.alert("同期完了", `${resetCount} 件のファイルが Drive 上に見つからないため、ステータスをリセットしました`);
+      } else {
+        Alert.alert("同期完了", "すべてのファイルが Drive 上に存在しています");
+      }
+    } catch (e) {
+      Alert.alert("同期エラー", e instanceof Error ? e.message : "不明なエラー");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const handleRowPress = (item: RecordingFile) => {
     navigation.navigate("Playback", { uri: item.uri, name: item.name });
   };
 
   const renderItem = ({ item }: { item: RecordingFile }) => {
     const isSelected = selectedUris.has(item.uri);
+    const uploadStatus = uploadStatuses.get(item.name) ?? "not_queued";
     return (
       <TouchableOpacity
         style={[styles.row, isSelected && styles.rowSelected]}
@@ -96,7 +169,14 @@ const RecordingsScreen = ({ navigation }: Props) => {
           <Text style={styles.fileName} numberOfLines={1}>
             {item.name}
           </Text>
-          <Text style={styles.fileMeta}>{formatFileSize(item.size)}</Text>
+          <View style={styles.fileMetaRow}>
+            <Text style={styles.fileMeta}>{formatFileSize(item.size)}</Text>
+            {uploadStatus !== "not_queued" && (
+              <Text style={[styles.uploadStatus, { color: UPLOAD_STATUS_COLORS[uploadStatus] }]}>
+                {UPLOAD_STATUS_LABELS[uploadStatus]}
+              </Text>
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     );
@@ -106,6 +186,27 @@ const RecordingsScreen = ({ navigation }: Props) => {
     <View style={styles.container}>
       <View style={styles.toolbar}>
         <TouchableOpacity
+          style={[styles.toolbarButton, styles.syncButton, isSyncing && styles.buttonDisabled]}
+          onPress={handleSyncStatus}
+          disabled={isSyncing}
+        >
+          <Text style={styles.toolbarButtonText}>{isSyncing ? "同期中..." : "Drive 同期"}</Text>
+        </TouchableOpacity>
+        <View style={styles.toolbarSpacer} />
+        <TouchableOpacity
+          style={[
+            styles.toolbarButton,
+            styles.uploadButton,
+            (selectedUris.size === 0 || isUploading) && styles.buttonDisabled,
+          ]}
+          onPress={handleUploadSelected}
+          disabled={selectedUris.size === 0 || isUploading}
+        >
+          <Text style={styles.toolbarButtonText}>
+            {isUploading ? "アップロード中..." : `アップロード (${selectedUris.size})`}
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
           style={[
             styles.toolbarButton,
             styles.deleteButton,
@@ -114,7 +215,7 @@ const RecordingsScreen = ({ navigation }: Props) => {
           onPress={handleDeleteSelected}
           disabled={selectedUris.size === 0}
         >
-          <Text style={styles.toolbarButtonText}>選択削除 ({selectedUris.size})</Text>
+          <Text style={styles.toolbarButtonText}>削除 ({selectedUris.size})</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
@@ -171,6 +272,15 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
   },
+  syncButton: {
+    backgroundColor: colors.accentPurple,
+  },
+  toolbarSpacer: {
+    flex: 1,
+  },
+  uploadButton: {
+    backgroundColor: colors.accentBlue,
+  },
   deleteButton: {
     backgroundColor: colors.accentRed,
   },
@@ -224,9 +334,18 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     marginBottom: 2,
   },
+  fileMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   fileMeta: {
     fontSize: 12,
     color: colors.textMuted,
+  },
+  uploadStatus: {
+    fontSize: 11,
+    fontWeight: "bold",
   },
   listFooter: {
     alignItems: "center",
