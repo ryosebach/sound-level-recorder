@@ -100,6 +100,7 @@ const SettingsScreen = () => {
         </TouchableOpacity>
       )}
 
+
       {Platform.OS === "android" && (
         <>
           <Text style={styles.sectionTitle}>バッテリー最適化</Text>
