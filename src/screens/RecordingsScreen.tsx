@@ -11,10 +11,7 @@ import {
 } from "@/utils/fileManager";
 import colors from "@/theme/colors";
 import { uploadManual, syncDriveStatus } from "@/services/uploadManager";
-import {
-  getUploadStatusForFile,
-  type FileUploadStatus,
-} from "@/services/uploadQueue";
+import { getUploadStatusForFile, type FileUploadStatus } from "@/services/uploadQueue";
 import { isSignedIn } from "@/services/googleAuth";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Recordings">;
@@ -113,9 +110,7 @@ const RecordingsScreen = ({ navigation }: Props) => {
     }
     setIsUploading(true);
     try {
-      const audioFilenames = files
-        .filter((f) => selectedUris.has(f.uri))
-        .map((f) => f.name);
+      const audioFilenames = files.filter((f) => selectedUris.has(f.uri)).map((f) => f.name);
       await uploadManual(audioFilenames);
       loadFiles();
     } catch (e) {
@@ -135,7 +130,10 @@ const RecordingsScreen = ({ navigation }: Props) => {
       const resetCount = await syncDriveStatus();
       loadFiles();
       if (resetCount > 0) {
-        Alert.alert("同期完了", `${resetCount} 件のファイルが Drive 上に見つからないため、ステータスをリセットしました`);
+        Alert.alert(
+          "同期完了",
+          `${resetCount} 件のファイルが Drive 上に見つからないため、ステータスをリセットしました`,
+        );
       } else {
         Alert.alert("同期完了", "すべてのファイルが Drive 上に存在しています");
       }

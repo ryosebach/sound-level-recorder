@@ -1,5 +1,13 @@
 import { useCallback, useState } from "react";
-import { Platform, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from "react-native";
+import {
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import colors from "@/theme/colors";
 import {
@@ -99,7 +107,6 @@ const SettingsScreen = () => {
           <Text style={styles.actionButtonText}>Google アカウントでサインイン</Text>
         </TouchableOpacity>
       )}
-
 
       {Platform.OS === "android" && (
         <>

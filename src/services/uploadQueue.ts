@@ -58,7 +58,11 @@ export const getPendingUploads = (): UploadQueueItem[] => {
 };
 
 export const markUploading = (id: number): void => {
-  db.runSync("UPDATE upload_queue SET status = 'uploading', updated_at = ? WHERE id = ?", new Date().toISOString(), id);
+  db.runSync(
+    "UPDATE upload_queue SET status = 'uploading', updated_at = ? WHERE id = ?",
+    new Date().toISOString(),
+    id,
+  );
 };
 
 export const markUploaded = (id: number, driveFileId: string): void => {
