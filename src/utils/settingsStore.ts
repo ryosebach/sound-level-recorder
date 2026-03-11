@@ -10,6 +10,8 @@ db.execSync(
 );
 
 const KEY_SPLIT_INTERVAL = "split_interval_ms";
+const KEY_GOOGLE_DRIVE_ENABLED = "google_drive_enabled";
+const KEY_WIFI_ONLY_UPLOAD = "wifi_only_upload";
 
 export type SplitIntervalOption = {
   label: string;
@@ -42,6 +44,39 @@ export const setSplitIntervalMs = (value: number | null): void => {
   db.runSync(
     "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
     KEY_SPLIT_INTERVAL,
+    String(value),
+  );
+};
+
+export const getGoogleDriveEnabled = (): boolean => {
+  const row = db.getFirstSync<{ value: string }>(
+    "SELECT value FROM settings WHERE key = ?",
+    KEY_GOOGLE_DRIVE_ENABLED,
+  );
+  return row?.value === "true";
+};
+
+export const setGoogleDriveEnabled = (value: boolean): void => {
+  db.runSync(
+    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+    KEY_GOOGLE_DRIVE_ENABLED,
+    String(value),
+  );
+};
+
+export const getWifiOnlyUpload = (): boolean => {
+  const row = db.getFirstSync<{ value: string }>(
+    "SELECT value FROM settings WHERE key = ?",
+    KEY_WIFI_ONLY_UPLOAD,
+  );
+  if (row == null) return true; // default: Wi-Fi only
+  return row.value === "true";
+};
+
+export const setWifiOnlyUpload = (value: boolean): void => {
+  db.runSync(
+    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+    KEY_WIFI_ONLY_UPLOAD,
     String(value),
   );
 };

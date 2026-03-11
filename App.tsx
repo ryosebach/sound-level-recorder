@@ -6,6 +6,9 @@ import RecordingsScreen from "@/screens/RecordingsScreen";
 import PlaybackScreen from "@/screens/PlaybackScreen";
 import SettingsScreen from "@/screens/SettingsScreen";
 import colors from "@/theme/colors";
+import { configureGoogleSignIn } from "@/services/googleAuth";
+
+configureGoogleSignIn();
 
 export type RootStackParamList = {
   Home: undefined;

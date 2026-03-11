@@ -1,5 +1,13 @@
 import { useCallback, useState } from "react";
-import { Platform, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import colors from "@/theme/colors";
 import {
@@ -14,11 +22,22 @@ import {
   getManufacturerGuideUrl,
   openManufacturerGuide,
 } from "@/utils/batteryOptimization";
+import { useGoogleDrive } from "@/hooks/useGoogleDrive";
 
 const SettingsScreen = () => {
   const [splitInterval, setSplitInterval] = useState<number | null>(getSplitIntervalMs);
   const [storageBytes, setStorageBytes] = useState(0);
   const [batteryOptEnabled, setBatteryOptEnabled] = useState(false);
+  const {
+    user,
+    signedIn,
+    uploadEnabled,
+    wifiOnly,
+    handleSignIn,
+    handleSignOut,
+    toggleUploadEnabled,
+    toggleWifiOnly,
+  } = useGoogleDrive();
 
   useFocusEffect(
     useCallback(() => {
@@ -42,7 +61,7 @@ const SettingsScreen = () => {
   const manufacturerGuideUrl = getManufacturerGuideUrl();
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.sectionTitle}>分割間隔</Text>
       <View style={styles.chipRow}>
         {SPLIT_INTERVAL_OPTIONS.map((opt) => {
@@ -63,6 +82,31 @@ const SettingsScreen = () => {
 
       <Text style={styles.sectionTitle}>ストレージ使用量</Text>
       <Text style={styles.storageValue}>{formatBytes(storageBytes)}</Text>
+
+      <Text style={styles.sectionTitle}>Google Drive</Text>
+      {signedIn ? (
+        <>
+          <Text style={styles.statusText}>{user?.email ?? "サインイン済み"}</Text>
+          <View style={styles.switchRow}>
+            <Text style={styles.switchLabel}>自動アップロード</Text>
+            <Switch value={uploadEnabled} onValueChange={toggleUploadEnabled} />
+          </View>
+          <View style={styles.switchRow}>
+            <Text style={styles.switchLabel}>Wi-Fi のみ</Text>
+            <Switch value={wifiOnly} onValueChange={toggleWifiOnly} />
+          </View>
+          <TouchableOpacity
+            style={[styles.actionButton, styles.secondaryButton]}
+            onPress={handleSignOut}
+          >
+            <Text style={styles.secondaryButtonText}>サインアウト</Text>
+          </TouchableOpacity>
+        </>
+      ) : (
+        <TouchableOpacity style={styles.actionButton} onPress={handleSignIn}>
+          <Text style={styles.actionButtonText}>Google アカウントでサインイン</Text>
+        </TouchableOpacity>
+      )}
 
       {Platform.OS === "android" && (
         <>
@@ -85,7 +129,7 @@ const SettingsScreen = () => {
           )}
         </>
       )}
-    </View>
+    </ScrollView>
   );
 };
 
@@ -95,6 +139,8 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgPrimary,
+  },
+  contentContainer: {
     padding: 24,
   },
   sectionTitle: {
@@ -161,5 +207,15 @@ const styles = StyleSheet.create({
     color: colors.accentBlue,
     fontSize: 15,
     fontWeight: "bold",
+  },
+  switchRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  switchLabel: {
+    fontSize: 15,
+    color: colors.textPrimary,
   },
 });

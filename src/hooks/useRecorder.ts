@@ -18,6 +18,7 @@ import {
 } from "@/utils/decibelBuffer";
 import { startBackgroundTask, stopBackgroundTask } from "@/utils/backgroundTask";
 import { maybeShowBatteryOptimizationAlert } from "@/utils/batteryOptimization";
+import { triggerUploadAfterSplit } from "@/services/uploadManager";
 
 const AudioModule = requireNativeModule("ExpoAudio");
 
@@ -194,10 +195,11 @@ export const useRecorder = (splitIntervalMs: number | null = 21_600_000) => {
       const audioFilename = moveRecording(oldUri);
       setSavedFiles((prev) => [...prev, getRecordingUri(audioFilename)]);
 
-      // Non-blocking: CSV export + cleanup runs in background
+      // Non-blocking: CSV export + cleanup + upload trigger runs in background
       exportDecibelCsv(fromIso, toIso).then((csvContent) => {
         writeDecibelCsv(csvContent, audioFilename);
         deleteDecibelRows(fromIso, toIso);
+        triggerUploadAfterSplit(audioFilename);
       });
     }
 
@@ -301,6 +303,7 @@ export const useRecorder = (splitIntervalMs: number | null = 21_600_000) => {
         const csvContent = await exportDecibelCsv(fromIso, toIso);
         writeDecibelCsv(csvContent, audioFilename);
         await deleteDecibelRows(fromIso, toIso);
+        triggerUploadAfterSplit(audioFilename);
       }
       setCompletedDurationMillis((prev) => prev + segmentDuration);
       recorderRef.current = null;
