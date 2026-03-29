@@ -26,7 +26,6 @@
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
-      "googleServicesFile": "./google-services.json",
       "package": "com.ryosebach.soundlevelrecorder",
       "permissions": [
         "RECORD_AUDIO",
