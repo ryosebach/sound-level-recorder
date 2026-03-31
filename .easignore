@@ -34,8 +34,7 @@ yarn-error.*
 .env
 .env*.local
 
-# Firebase / GCP credentials
-google-services.json
+# NOTE: google-services.json はローカルビルドで必要なため除外しない
 
 # typescript
 *.tsbuildinfo
