@@ -8,7 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "build:android": "npx -y eas-cli build --platform android --profile preview --local --output build.apk",
+    "build:android": "pnpm dlx eas-cli build --platform android --profile preview --local --output build.apk",
     "install:android": "adb install -r build.apk || (adb uninstall com.ryosebach.soundlevelrecorder && adb install build.apk)",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
@@ -24,9 +24,11 @@
     "expo": "~54.0.0",
     "expo-audio": "~1.1.1",
     "expo-battery": "~10.0.8",
+    "expo-constants": "~18.0.13",
     "expo-dev-client": "~6.0.20",
     "expo-file-system": "~19.0.21",
     "expo-intent-launcher": "~13.0.8",
+    "expo-modules-core": "~3.0.29",
     "expo-sqlite": "~16.0.10",
     "expo-status-bar": "~3.0.9",
     "react": "19.1.0",
@@ -41,5 +43,6 @@
     "oxfmt": "^0.36.0",
     "oxlint": "^1.51.0",
     "typescript": "~5.9.2"
-  }
+  },
+  "packageManager": "pnpm@10.30.3"
 }
