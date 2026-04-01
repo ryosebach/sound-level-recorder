@@ -3,7 +3,6 @@
   "version": "1.0.0",
   "private": true,
   "main": "index.ts",
-  "packageManager": "pnpm@10.30.3",
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
@@ -42,5 +41,6 @@
     "oxfmt": "^0.36.0",
     "oxlint": "^1.51.0",
     "typescript": "~5.9.2"
-  }
+  },
+  "packageManager": "pnpm@10.30.3"
 }
