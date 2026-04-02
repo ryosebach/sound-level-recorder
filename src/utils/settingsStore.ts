@@ -12,6 +12,7 @@ db.execSync(
 const KEY_SPLIT_INTERVAL = "split_interval_ms";
 const KEY_GOOGLE_DRIVE_ENABLED = "google_drive_enabled";
 const KEY_WIFI_ONLY_UPLOAD = "wifi_only_upload";
+const KEY_DEBUG_LOG_ENABLED = "debug_log_enabled";
 
 export type SplitIntervalOption = {
   label: string;
@@ -77,6 +78,22 @@ export const setWifiOnlyUpload = (value: boolean): void => {
   db.runSync(
     "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
     KEY_WIFI_ONLY_UPLOAD,
+    String(value),
+  );
+};
+
+export const getDebugLogEnabled = (): boolean => {
+  const row = db.getFirstSync<{ value: string }>(
+    "SELECT value FROM settings WHERE key = ?",
+    KEY_DEBUG_LOG_ENABLED,
+  );
+  return row?.value === "true";
+};
+
+export const setDebugLogEnabled = (value: boolean): void => {
+  db.runSync(
+    "INSERT OR REPLACE INTO settings (key, value) VALUES (?, ?)",
+    KEY_DEBUG_LOG_ENABLED,
     String(value),
   );
 };

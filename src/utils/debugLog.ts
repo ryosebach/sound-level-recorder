@@ -1,4 +1,5 @@
 import { File, Paths } from "expo-file-system/next";
+import { getDebugLogEnabled } from "@/utils/settingsStore";
 
 const LOG_FILE = "debug.log";
 
@@ -8,6 +9,7 @@ const getLogFile = (): File => {
 
 export const appendLog = (message: string): void => {
   try {
+    if (!getDebugLogEnabled()) return;
     const file = getLogFile();
     const timestamp = new Date().toISOString();
     const line = `[${timestamp}] ${message}\n`;
