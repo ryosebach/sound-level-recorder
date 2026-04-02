@@ -47,6 +47,30 @@ export const enqueueRecording = (audioFilename: string): void => {
       now,
       now,
     );
+    db.runSync(
+      "INSERT INTO upload_queue (audio_filename, file_type, status, retry_count, created_at, updated_at) VALUES (?, ?, 'pending', 0, ?, ?)",
+      audioFilename,
+      "json",
+      now,
+      now,
+    );
+  });
+};
+
+export const enqueueMetaUpload = (segmentPath: string): void => {
+  const now = new Date().toISOString();
+  db.withTransactionSync(() => {
+    db.runSync(
+      "DELETE FROM upload_queue WHERE audio_filename = ? AND file_type = 'json'",
+      segmentPath,
+    );
+    db.runSync(
+      "INSERT INTO upload_queue (audio_filename, file_type, status, retry_count, created_at, updated_at) VALUES (?, ?, 'pending', 0, ?, ?)",
+      segmentPath,
+      "json",
+      now,
+      now,
+    );
   });
 };
 

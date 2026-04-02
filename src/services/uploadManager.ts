@@ -1,10 +1,11 @@
 import NetInfo from "@react-native-community/netinfo";
-import { getAudioUri, getCsvUri } from "@/utils/fileManager";
+import { getAudioUri, getCsvUri, getMetaUri } from "@/utils/fileManager";
 import { getGoogleDriveEnabled, getWifiOnlyUpload } from "@/utils/settingsStore";
 import { isSignedIn, getAccessToken } from "@/services/googleAuth";
 import { ensureFolder, uploadMultipart, uploadResumable, fileExists } from "@/services/driveApi";
 import {
   enqueueRecording,
+  enqueueMetaUpload,
   getPendingUploads,
   markUploading,
   markUploaded,
@@ -65,15 +66,34 @@ const processPending = async (): Promise<void> => {
         markUploading(item.id);
 
         const { sessionId, segmentId } = parseSegmentPath(item.audio_filename);
-        const isAudio = item.file_type === "m4a";
-        const driveFilename = isAudio ? `${segmentId}.m4a` : `${segmentId}.csv`;
-        const fileUri = isAudio
-          ? getAudioUri(sessionId, segmentId)
-          : getCsvUri(sessionId, segmentId);
-        const mimeType = isAudio ? "audio/mp4" : "text/csv";
+
+        let driveFilename: string;
+        let fileUri: string;
+        let mimeType: string;
+
+        switch (item.file_type) {
+          case "m4a":
+            driveFilename = `${segmentId}.m4a`;
+            fileUri = getAudioUri(sessionId, segmentId);
+            mimeType = "audio/mp4";
+            break;
+          case "csv":
+            driveFilename = `${segmentId}.csv`;
+            fileUri = getCsvUri(sessionId, segmentId);
+            mimeType = "text/csv";
+            break;
+          case "json":
+            driveFilename = `${segmentId}.meta.json`;
+            fileUri = getMetaUri(sessionId, segmentId);
+            mimeType = "application/json";
+            break;
+          default:
+            markFailed(item.id);
+            continue;
+        }
 
         let driveFileId: string;
-        if (isAudio) {
+        if (item.file_type === "m4a") {
           driveFileId = await uploadResumable(
             driveFilename,
             fileUri,
@@ -108,6 +128,11 @@ export const processUploadQueue = async (): Promise<void> => {
 
 export const triggerUploadAfterSplit = (segmentPath: string): void => {
   enqueueRecording(segmentPath);
+  processUploadQueue().catch(() => {});
+};
+
+export const triggerMetaUpload = (segmentPath: string): void => {
+  enqueueMetaUpload(segmentPath);
   processUploadQueue().catch(() => {});
 };
 

@@ -1,5 +1,14 @@
-import { useCallback, useState } from "react";
-import { Alert, SectionList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  Alert,
+  Modal,
+  SectionList,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  TouchableWithoutFeedback,
+  View,
+} from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
@@ -8,10 +17,11 @@ import {
   deleteSegment,
   deleteAllRecordings,
   getSegmentPath,
+  writeMeta,
   type SegmentFile,
 } from "@/utils/fileManager";
 import colors from "@/theme/colors";
-import { uploadManual, syncDriveStatus } from "@/services/uploadManager";
+import { uploadManual, syncDriveStatus, triggerMetaUpload } from "@/services/uploadManager";
 import { getAllUploadStatuses, type FileUploadStatus } from "@/services/uploadQueue";
 import { isSignedIn } from "@/services/googleAuth";
 
@@ -66,6 +76,13 @@ const RecordingsScreen = ({ navigation }: Props) => {
   const [uploadStatuses, setUploadStatuses] = useState<Map<string, FileUploadStatus>>(new Map());
   const [isUploading, setIsUploading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [filterFavorite, setFilterFavorite] = useState(false);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [menuPosition, setMenuPosition] = useState({ top: 0, right: 0 });
+  const menuButtonRef = useRef<View>(null);
+  const listRef = useRef<SectionList<SegmentFile, SectionData>>(null);
+  const scrollOffsetRef = useRef(0);
+  const listHeightRef = useRef(0);
 
   const loadFiles = useCallback(() => {
     const sessions = listRecordingSessions();
@@ -80,7 +97,29 @@ const RecordingsScreen = ({ navigation }: Props) => {
     setUploadStatuses(getAllUploadStatuses());
   }, []);
 
+  const handleContentSizeChange = useCallback((_w: number, contentHeight: number) => {
+    const maxOffset = Math.max(0, contentHeight - listHeightRef.current);
+    if (scrollOffsetRef.current > maxOffset) {
+      listRef.current?.getScrollResponder()?.scrollTo({ y: maxOffset, animated: false });
+    }
+  }, []);
+
   useFocusEffect(loadFiles);
+
+  const filteredSections = useMemo(() => {
+    if (!filterFavorite) return sections;
+    return sections
+      .map((s) => {
+        const filtered = s.data.filter((seg) => seg.meta.favorite);
+        return {
+          ...s,
+          data: filtered,
+          segmentCount: filtered.length,
+          totalSize: filtered.reduce((sum, seg) => sum + seg.size, 0),
+        };
+      })
+      .filter((s) => s.data.length > 0);
+  }, [sections, filterFavorite]);
 
   const getSegmentKey = (sessionId: string, segmentId: string): string => {
     return getSegmentPath(sessionId, segmentId);
@@ -174,8 +213,26 @@ const RecordingsScreen = ({ navigation }: Props) => {
     }
   };
 
+  const openMenu = () => {
+    menuButtonRef.current?.measureInWindow((x, y, width, height) => {
+      setMenuPosition({ top: y + height + 4, right: 16 });
+      setMenuVisible(true);
+    });
+  };
+
+  const handleToggleFavorite = (sessionId: string, item: SegmentFile) => {
+    writeMeta(sessionId, item.segmentId, { favorite: !item.meta.favorite });
+    triggerMetaUpload(getSegmentPath(sessionId, item.segmentId));
+    loadFiles();
+  };
+
   const handleRowPress = (sessionId: string, item: SegmentFile) => {
-    navigation.navigate("Playback", { uri: item.audioUri, name: item.segmentId });
+    navigation.navigate("Playback", {
+      uri: item.audioUri,
+      name: item.segmentId,
+      sessionId,
+      segmentId: item.segmentId,
+    });
   };
 
   const renderSectionHeader = ({ section }: { section: SectionData }) => (
@@ -209,6 +266,7 @@ const RecordingsScreen = ({ navigation }: Props) => {
           </Text>
           <View style={styles.fileMetaRow}>
             <Text style={styles.fileMeta}>{formatFileSize(item.size)}</Text>
+            {item.meta.comment !== "" && <Text style={styles.commentIcon}>💬</Text>}
             {uploadStatus !== "not_queued" && (
               <Text style={[styles.uploadStatus, { color: UPLOAD_STATUS_COLORS[uploadStatus] }]}>
                 {UPLOAD_STATUS_LABELS[uploadStatus]}
@@ -216,21 +274,31 @@ const RecordingsScreen = ({ navigation }: Props) => {
             )}
           </View>
         </View>
+        <TouchableOpacity
+          style={styles.favoriteButton}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => handleToggleFavorite(section.sessionId, item)}
+        >
+          <Text style={[styles.favoriteIcon, item.meta.favorite && styles.favoriteActive]}>
+            {item.meta.favorite ? "\u2605" : "\u2606"}
+          </Text>
+        </TouchableOpacity>
       </TouchableOpacity>
     );
   };
 
-  const totalSegments = sections.reduce((sum, s) => sum + s.segmentCount, 0);
+  const totalSegments = filteredSections.reduce((sum, s) => sum + s.segmentCount, 0);
 
   return (
     <View style={styles.container}>
       <View style={styles.toolbar}>
         <TouchableOpacity
-          style={[styles.toolbarButton, styles.syncButton, isSyncing && styles.buttonDisabled]}
-          onPress={handleSyncStatus}
-          disabled={isSyncing}
+          style={[styles.toolbarButton, styles.filterButton, filterFavorite && styles.filterActive]}
+          onPress={() => setFilterFavorite((prev) => !prev)}
         >
-          <Text style={styles.toolbarButtonText}>{isSyncing ? "同期中..." : "Drive 同期"}</Text>
+          <Text style={styles.toolbarButtonText}>
+            {filterFavorite ? "\u2605 お気に入り" : "\u2606 フィルタ"}
+          </Text>
         </TouchableOpacity>
         <View style={styles.toolbarSpacer} />
         <TouchableOpacity
@@ -257,18 +325,50 @@ const RecordingsScreen = ({ navigation }: Props) => {
         >
           <Text style={styles.toolbarButtonText}>削除 ({selectedKeys.size})</Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[
-            styles.toolbarButton,
-            styles.deleteAllButton,
-            totalSegments === 0 && styles.buttonDisabled,
-          ]}
-          onPress={handleDeleteAll}
-          disabled={totalSegments === 0}
-        >
-          <Text style={styles.toolbarButtonText}>全件削除</Text>
-        </TouchableOpacity>
+        <View ref={menuButtonRef} collapsable={false}>
+          <TouchableOpacity style={styles.menuButton} onPress={openMenu}>
+            <Text style={styles.menuButtonText}>{"\u22EF"}</Text>
+          </TouchableOpacity>
+        </View>
       </View>
+
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <TouchableWithoutFeedback onPress={() => setMenuVisible(false)}>
+          <View style={styles.menuOverlay}>
+            <TouchableWithoutFeedback>
+              <View
+                style={[styles.menuDropdown, { top: menuPosition.top, right: menuPosition.right }]}
+              >
+                <TouchableOpacity
+                  style={[styles.menuItem, isSyncing && styles.buttonDisabled]}
+                  onPress={() => {
+                    setMenuVisible(false);
+                    handleSyncStatus();
+                  }}
+                  disabled={isSyncing}
+                >
+                  <Text style={styles.menuItemText}>{isSyncing ? "同期中..." : "Drive 同期"}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.menuItem, totalSegments === 0 && styles.buttonDisabled]}
+                  onPress={() => {
+                    setMenuVisible(false);
+                    handleDeleteAll();
+                  }}
+                  disabled={totalSegments === 0}
+                >
+                  <Text style={[styles.menuItemText, styles.menuItemDestructive]}>全件削除</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
 
       {totalSegments === 0 ? (
         <View style={styles.emptyContainer}>
@@ -276,11 +376,20 @@ const RecordingsScreen = ({ navigation }: Props) => {
         </View>
       ) : (
         <SectionList
-          sections={sections}
+          ref={listRef}
+          sections={filteredSections}
           keyExtractor={(item, index) => item.segmentId + index}
           renderItem={renderItem}
           renderSectionHeader={renderSectionHeader}
           contentContainerStyle={styles.list}
+          onScroll={(e) => {
+            scrollOffsetRef.current = e.nativeEvent.contentOffset.y;
+          }}
+          scrollEventThrottle={16}
+          onLayout={(e) => {
+            listHeightRef.current = e.nativeEvent.layout.height;
+          }}
+          onContentSizeChange={handleContentSizeChange}
           ListFooterComponent={
             <View style={styles.listFooter}>
               <View style={styles.footerDot} />
@@ -313,9 +422,6 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
   },
-  syncButton: {
-    backgroundColor: colors.accentPurple,
-  },
   toolbarSpacer: {
     flex: 1,
   },
@@ -325,8 +431,43 @@ const styles = StyleSheet.create({
   deleteButton: {
     backgroundColor: colors.accentRed,
   },
-  deleteAllButton: {
-    backgroundColor: colors.accentOrange,
+  menuButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  menuButtonText: {
+    color: colors.textPrimary,
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  menuOverlay: {
+    flex: 1,
+  },
+  menuDropdown: {
+    position: "absolute",
+    backgroundColor: colors.bgSecondary,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+    minWidth: 160,
+    overflow: "hidden",
+  },
+  menuItem: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  menuItemText: {
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  menuItemDestructive: {
+    color: colors.accentRed,
   },
   buttonDisabled: {
     opacity: 0.4,
@@ -402,9 +543,32 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.textMuted,
   },
+  commentIcon: {
+    fontSize: 12,
+  },
   uploadStatus: {
     fontSize: 11,
     fontWeight: "bold",
+  },
+  favoriteButton: {
+    paddingHorizontal: 8,
+    justifyContent: "center",
+  },
+  favoriteIcon: {
+    fontSize: 22,
+    color: colors.textMuted,
+  },
+  favoriteActive: {
+    color: colors.accentOrange,
+  },
+  filterButton: {
+    backgroundColor: colors.bgSecondary,
+    borderWidth: 1,
+    borderColor: colors.borderStrong,
+  },
+  filterActive: {
+    backgroundColor: colors.accentOrange,
+    borderColor: colors.accentOrange,
   },
   listFooter: {
     alignItems: "center",
