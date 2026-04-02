@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
   KeyboardAvoidingView,
@@ -32,6 +32,8 @@ const PlaybackScreen = ({ route, navigation }: Props) => {
   const [viewportWidth, setViewportWidth] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekValue, setSeekValue] = useState(0);
+
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const [meta, setMeta] = useState(() => readMeta(sessionId, segmentId));
   const [commentDraft, setCommentDraft] = useState(meta.comment);
@@ -128,9 +130,15 @@ const PlaybackScreen = ({ route, navigation }: Props) => {
   return (
     <KeyboardAvoidingView
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
     >
-      <ScrollView style={styles.scrollContainer} contentContainerStyle={styles.scrollContent}>
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.scrollContainer}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+      >
         <Text style={styles.fileName} numberOfLines={1}>
           {name}
         </Text>
@@ -221,6 +229,10 @@ const PlaybackScreen = ({ route, navigation }: Props) => {
                   placeholder="コメントを入力..."
                   placeholderTextColor={colors.textMuted}
                   multiline
+                  autoFocus
+                  onFocus={() => {
+                    setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 300);
+                  }}
                 />
                 <View style={styles.commentActions}>
                   <TouchableOpacity
