@@ -1,13 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Alert,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { useCallback, useEffect, useState } from "react";
+import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import Slider from "@react-native-community/slider";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import { usePlaybackData } from "@/hooks/usePlaybackData";
@@ -30,8 +23,6 @@ const PlaybackScreen = ({ route, navigation }: Props) => {
   const [viewportWidth, setViewportWidth] = useState(0);
   const [isSeeking, setIsSeeking] = useState(false);
   const [seekValue, setSeekValue] = useState(0);
-
-  const scrollViewRef = useRef<ScrollView>(null);
 
   const [meta, setMeta] = useState(() => readMeta(sessionId, segmentId));
   const [commentDraft, setCommentDraft] = useState(meta.comment);
@@ -126,12 +117,11 @@ const PlaybackScreen = ({ route, navigation }: Props) => {
   const displayTime = isSeeking ? seekValue * 1000 : currentTimeMs;
 
   return (
-    <ScrollView
-      ref={scrollViewRef}
+    <KeyboardAwareScrollView
       style={styles.container}
       contentContainerStyle={styles.scrollContent}
       keyboardShouldPersistTaps="handled"
-      automaticallyAdjustKeyboardInsets
+      bottomOffset={20}
     >
       <Text style={styles.fileName} numberOfLines={1}>
         {name}
@@ -224,9 +214,6 @@ const PlaybackScreen = ({ route, navigation }: Props) => {
                 placeholderTextColor={colors.textMuted}
                 multiline
                 autoFocus
-                onFocus={() => {
-                  setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 300);
-                }}
               />
               <View style={styles.commentActions}>
                 <TouchableOpacity
@@ -247,7 +234,7 @@ const PlaybackScreen = ({ route, navigation }: Props) => {
           )}
         </View>
       </View>
-    </ScrollView>
+    </KeyboardAwareScrollView>
   );
 };
 
