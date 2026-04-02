@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Alert,
-  KeyboardAvoidingView,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -128,133 +126,128 @@ const PlaybackScreen = ({ route, navigation }: Props) => {
   const displayTime = isSeeking ? seekValue * 1000 : currentTimeMs;
 
   return (
-    <KeyboardAvoidingView
+    <ScrollView
+      ref={scrollViewRef}
       style={styles.container}
-      behavior={Platform.OS === "ios" ? "padding" : "height"}
-      keyboardVerticalOffset={Platform.OS === "ios" ? 100 : 0}
+      contentContainerStyle={styles.scrollContent}
+      keyboardShouldPersistTaps="handled"
+      automaticallyAdjustKeyboardInsets
     >
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.scrollContainer}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-      >
-        <Text style={styles.fileName} numberOfLines={1}>
-          {name}
-        </Text>
+      <Text style={styles.fileName} numberOfLines={1}>
+        {name}
+      </Text>
 
-        <View
-          style={styles.graphContainer}
-          onLayout={(e) => setViewportWidth(e.nativeEvent.layout.width)}
-        >
-          {playbackData.status === "loading" && (
-            <View style={styles.graphPlaceholder}>
-              <Text style={styles.placeholderText}>読み込み中...</Text>
-            </View>
-          )}
-          {playbackData.status === "error" && (
-            <View style={styles.graphPlaceholder}>
-              <Text style={styles.errorText}>CSVデータが見つかりません</Text>
-            </View>
-          )}
-          {playbackData.status === "ready" && viewportWidth > 0 && durationMs > 0 && (
-            <DbGraph
-              points={playbackData.points}
-              durationMs={durationMs}
-              currentTimeMs={currentTimeMs}
-              viewportWidth={viewportWidth}
-              height={250}
-              startTimestamp={playbackData.startTimestamp}
-              onSeek={handleSeek}
-            />
-          )}
+      <View
+        style={styles.graphContainer}
+        onLayout={(e) => setViewportWidth(e.nativeEvent.layout.width)}
+      >
+        {playbackData.status === "loading" && (
+          <View style={styles.graphPlaceholder}>
+            <Text style={styles.placeholderText}>読み込み中...</Text>
+          </View>
+        )}
+        {playbackData.status === "error" && (
+          <View style={styles.graphPlaceholder}>
+            <Text style={styles.errorText}>CSVデータが見つかりません</Text>
+          </View>
+        )}
+        {playbackData.status === "ready" && viewportWidth > 0 && durationMs > 0 && (
+          <DbGraph
+            points={playbackData.points}
+            durationMs={durationMs}
+            currentTimeMs={currentTimeMs}
+            viewportWidth={viewportWidth}
+            height={250}
+            startTimestamp={playbackData.startTimestamp}
+            onSeek={handleSeek}
+          />
+        )}
+      </View>
+
+      <View style={styles.controls}>
+        <View style={styles.timeRow}>
+          <Text style={styles.time}>{formatDuration(displayTime)}</Text>
+          <Text style={styles.time}>{formatDuration(durationMs)}</Text>
         </View>
 
-        <View style={styles.controls}>
-          <View style={styles.timeRow}>
-            <Text style={styles.time}>{formatDuration(displayTime)}</Text>
-            <Text style={styles.time}>{formatDuration(durationMs)}</Text>
-          </View>
+        <Slider
+          style={styles.slider}
+          minimumValue={0}
+          maximumValue={status.duration || 1}
+          value={isSeeking ? seekValue : status.currentTime}
+          onSlidingStart={handleSlidingStart}
+          onValueChange={handleSliderChange}
+          onSlidingComplete={handleSlidingComplete}
+          minimumTrackTintColor={colors.accentBlue}
+          maximumTrackTintColor={colors.borderStrong}
+          thumbTintColor={colors.accentBlue}
+        />
 
-          <Slider
-            style={styles.slider}
-            minimumValue={0}
-            maximumValue={status.duration || 1}
-            value={isSeeking ? seekValue : status.currentTime}
-            onSlidingStart={handleSlidingStart}
-            onValueChange={handleSliderChange}
-            onSlidingComplete={handleSlidingComplete}
-            minimumTrackTintColor={colors.accentBlue}
-            maximumTrackTintColor={colors.borderStrong}
-            thumbTintColor={colors.accentBlue}
-          />
+        <TouchableOpacity style={styles.playButton} onPress={handlePlayPause}>
+          <Text style={styles.playButtonText}>
+            {status.playing ? "\u23F8 一時停止" : "\u25B6 再生"}
+          </Text>
+        </TouchableOpacity>
+      </View>
 
-          <TouchableOpacity style={styles.playButton} onPress={handlePlayPause}>
-            <Text style={styles.playButtonText}>
-              {status.playing ? "\u23F8 一時停止" : "\u25B6 再生"}
+      <View style={styles.metaSection}>
+        <View style={styles.favoriteRow}>
+          <Text style={styles.metaLabel}>お気に入り</Text>
+          <TouchableOpacity onPress={handleToggleFavorite}>
+            <Text style={[styles.favoriteIcon, meta.favorite && styles.favoriteActive]}>
+              {meta.favorite ? "\u2605" : "\u2606"}
             </Text>
           </TouchableOpacity>
         </View>
 
-        <View style={styles.metaSection}>
-          <View style={styles.favoriteRow}>
-            <Text style={styles.metaLabel}>お気に入り</Text>
-            <TouchableOpacity onPress={handleToggleFavorite}>
-              <Text style={[styles.favoriteIcon, meta.favorite && styles.favoriteActive]}>
-                {meta.favorite ? "\u2605" : "\u2606"}
-              </Text>
-            </TouchableOpacity>
+        <View style={styles.commentSection}>
+          <View style={styles.commentHeader}>
+            <Text style={styles.metaLabel}>コメント</Text>
+            {!isEditingComment && (
+              <TouchableOpacity
+                onPress={() => {
+                  setCommentDraft(meta.comment);
+                  setIsEditingComment(true);
+                }}
+              >
+                <Text style={styles.editButton}>編集</Text>
+              </TouchableOpacity>
+            )}
           </View>
-
-          <View style={styles.commentSection}>
-            <View style={styles.commentHeader}>
-              <Text style={styles.metaLabel}>コメント</Text>
-              {!isEditingComment && (
+          {isEditingComment ? (
+            <View>
+              <TextInput
+                style={styles.commentInput}
+                value={commentDraft}
+                onChangeText={setCommentDraft}
+                placeholder="コメントを入力..."
+                placeholderTextColor={colors.textMuted}
+                multiline
+                autoFocus
+                onFocus={() => {
+                  setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 300);
+                }}
+              />
+              <View style={styles.commentActions}>
                 <TouchableOpacity
                   onPress={() => {
                     setCommentDraft(meta.comment);
-                    setIsEditingComment(true);
+                    setIsEditingComment(false);
                   }}
                 >
-                  <Text style={styles.editButton}>編集</Text>
+                  <Text style={styles.cancelButton}>キャンセル</Text>
                 </TouchableOpacity>
-              )}
-            </View>
-            {isEditingComment ? (
-              <View>
-                <TextInput
-                  style={styles.commentInput}
-                  value={commentDraft}
-                  onChangeText={setCommentDraft}
-                  placeholder="コメントを入力..."
-                  placeholderTextColor={colors.textMuted}
-                  multiline
-                  autoFocus
-                  onFocus={() => {
-                    setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 300);
-                  }}
-                />
-                <View style={styles.commentActions}>
-                  <TouchableOpacity
-                    onPress={() => {
-                      setCommentDraft(meta.comment);
-                      setIsEditingComment(false);
-                    }}
-                  >
-                    <Text style={styles.cancelButton}>キャンセル</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={handleSaveComment}>
-                    <Text style={styles.saveButton}>保存</Text>
-                  </TouchableOpacity>
-                </View>
+                <TouchableOpacity onPress={handleSaveComment}>
+                  <Text style={styles.saveButton}>保存</Text>
+                </TouchableOpacity>
               </View>
-            ) : (
-              <Text style={styles.commentText}>{meta.comment || "コメントなし"}</Text>
-            )}
-          </View>
+            </View>
+          ) : (
+            <Text style={styles.commentText}>{meta.comment || "コメントなし"}</Text>
+          )}
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </View>
+    </ScrollView>
   );
 };
 
@@ -264,9 +257,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bgPrimary,
-  },
-  scrollContainer: {
-    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
