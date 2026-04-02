@@ -5,6 +5,7 @@ import HomeScreen from "@/screens/HomeScreen";
 import RecordingsScreen from "@/screens/RecordingsScreen";
 import PlaybackScreen from "@/screens/PlaybackScreen";
 import SettingsScreen from "@/screens/SettingsScreen";
+import DebugLogScreen from "@/screens/DebugLogScreen";
 import colors from "@/theme/colors";
 import { configureGoogleSignIn } from "@/services/googleAuth";
 
@@ -15,6 +16,7 @@ export type RootStackParamList = {
   Recordings: undefined;
   Playback: { uri: string; name: string };
   Settings: undefined;
+  DebugLog: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -49,6 +51,11 @@ const App = () => {
         />
         <Stack.Screen name="Playback" component={PlaybackScreen} options={{ title: "再生" }} />
         <Stack.Screen name="Settings" component={SettingsScreen} options={{ title: "設定" }} />
+        <Stack.Screen
+          name="DebugLog"
+          component={DebugLogScreen}
+          options={{ title: "デバッグログ" }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

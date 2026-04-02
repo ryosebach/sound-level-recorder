@@ -9,7 +9,13 @@ import {
 } from "expo-audio";
 import type { RecorderState } from "expo-audio";
 import { requireNativeModule } from "expo-modules-core";
-import { moveRecording, getRecordingUri, writeDecibelCsv } from "@/utils/fileManager";
+import {
+  moveRecording,
+  getAudioUri,
+  getSegmentPath,
+  writeDecibelCsv,
+  generateSessionId,
+} from "@/utils/fileManager";
 import {
   insertDecibelBatch,
   exportDecibelCsv,
@@ -79,6 +85,8 @@ export const useRecorder = (splitIntervalMs: number | null = 21_600_000) => {
   const segmentStartRef = useRef<number>(0);
   // ISO timestamp when the current segment started (for SQLite range queries)
   const segmentStartIsoRef = useRef<string>("");
+  // Session ID for the current recording session (persists across splits)
+  const sessionIdRef = useRef<string>("");
   // Memory buffer for batched SQLite inserts
   const pendingInserts = useRef<{ ts: string; offsetMs: number; db: number }[]>([]);
   const flushRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -173,6 +181,7 @@ export const useRecorder = (splitIntervalMs: number | null = 21_600_000) => {
     stopFlushing();
     flushPending();
 
+    const oldSegmentStartedAt = new Date(segmentStartRef.current);
     const segmentDuration = Date.now() - segmentStartRef.current;
     const fromIso = segmentStartIsoRef.current;
     const toIso = new Date().toISOString();
@@ -192,14 +201,16 @@ export const useRecorder = (splitIntervalMs: number | null = 21_600_000) => {
 
     // Move the old file and export CSV — runs async after recording resumes
     if (oldUri) {
-      const audioFilename = moveRecording(oldUri);
-      setSavedFiles((prev) => [...prev, getRecordingUri(audioFilename)]);
+      const currentSessionId = sessionIdRef.current;
+      const { segmentId } = moveRecording(oldUri, currentSessionId, oldSegmentStartedAt);
+      setSavedFiles((prev) => [...prev, getAudioUri(currentSessionId, segmentId)]);
 
       // Non-blocking: CSV export + cleanup + upload trigger runs in background
+      const segmentPath = getSegmentPath(currentSessionId, segmentId);
       exportDecibelCsv(fromIso, toIso).then((csvContent) => {
-        writeDecibelCsv(csvContent, audioFilename);
+        writeDecibelCsv(csvContent, currentSessionId, segmentId);
         deleteDecibelRows(fromIso, toIso);
-        triggerUploadAfterSplit(audioFilename);
+        triggerUploadAfterSplit(segmentPath);
       });
     }
 
@@ -273,6 +284,7 @@ export const useRecorder = (splitIntervalMs: number | null = 21_600_000) => {
 
     clearAllDecibelRows();
     pendingInserts.current = [];
+    sessionIdRef.current = generateSessionId();
     segmentStartRef.current = Date.now();
     segmentStartIsoRef.current = new Date().toISOString();
     setSavedFiles([]);
@@ -290,6 +302,7 @@ export const useRecorder = (splitIntervalMs: number | null = 21_600_000) => {
 
     const recorder = recorderRef.current;
     if (recorder) {
+      const segStartedAt = new Date(segmentStartRef.current);
       const segmentDuration = Date.now() - segmentStartRef.current;
       const fromIso = segmentStartIsoRef.current;
       const toIso = new Date().toISOString();
@@ -297,13 +310,14 @@ export const useRecorder = (splitIntervalMs: number | null = 21_600_000) => {
       await recorder.stop();
       const uri = recorder.uri;
       if (uri) {
-        const audioFilename = moveRecording(uri);
-        setSavedFiles((prev) => [...prev, getRecordingUri(audioFilename)]);
+        const currentSessionId = sessionIdRef.current;
+        const { segmentId } = moveRecording(uri, currentSessionId, segStartedAt);
+        setSavedFiles((prev) => [...prev, getAudioUri(currentSessionId, segmentId)]);
 
         const csvContent = await exportDecibelCsv(fromIso, toIso);
-        writeDecibelCsv(csvContent, audioFilename);
+        writeDecibelCsv(csvContent, currentSessionId, segmentId);
         await deleteDecibelRows(fromIso, toIso);
-        triggerUploadAfterSplit(audioFilename);
+        triggerUploadAfterSplit(getSegmentPath(currentSessionId, segmentId));
       }
       setCompletedDurationMillis((prev) => prev + segmentDuration);
       recorderRef.current = null;

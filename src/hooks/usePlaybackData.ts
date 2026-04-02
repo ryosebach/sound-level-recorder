@@ -21,7 +21,7 @@ export const usePlaybackData = (audioUri: string, maxPoints: number): PlaybackDa
 
     async function load() {
       try {
-        const csvUri = audioUri.replace(/\.m4a$/, ".csv");
+        const csvUri = audioUri.replace(/audio\.m4a$/, "decibel.csv");
         const csvFile = new File(csvUri);
         if (!csvFile.exists) {
           if (!cancelled)
