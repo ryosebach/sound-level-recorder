@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import Slider from "@react-native-community/slider";
@@ -26,19 +26,23 @@ const PlaybackScreen = ({ route, navigation }: Props) => {
 
   const [meta, setMeta] = useState(() => readMeta(sessionId, segmentId));
   const [commentDraft, setCommentDraft] = useState(meta.comment);
+  const commentDraftRef = useRef(commentDraft);
+  commentDraftRef.current = commentDraft;
+  const metaCommentRef = useRef(meta.comment);
+  metaCommentRef.current = meta.comment;
+
+  const saveCommentIfNeeded = useCallback(() => {
+    if (commentDraftRef.current === metaCommentRef.current) return;
+    const updated = writeMeta(sessionId, segmentId, { comment: commentDraftRef.current });
+    setMeta(updated);
+    triggerMetaUpload(getSegmentPath(sessionId, segmentId));
+  }, [sessionId, segmentId]);
 
   const handleToggleFavorite = useCallback(() => {
     const updated = writeMeta(sessionId, segmentId, { favorite: !meta.favorite });
     setMeta(updated);
     triggerMetaUpload(getSegmentPath(sessionId, segmentId));
   }, [sessionId, segmentId, meta.favorite]);
-
-  const handleCommentBlur = useCallback(() => {
-    if (commentDraft === meta.comment) return;
-    const updated = writeMeta(sessionId, segmentId, { comment: commentDraft });
-    setMeta(updated);
-    triggerMetaUpload(getSegmentPath(sessionId, segmentId));
-  }, [sessionId, segmentId, commentDraft, meta.comment]);
 
   const handleDelete = useCallback(() => {
     Alert.alert("セグメントを削除", "このセグメントを削除しますか？", [
@@ -58,12 +62,32 @@ const PlaybackScreen = ({ route, navigation }: Props) => {
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={handleDelete} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          <Text style={styles.headerDeleteText}>削除</Text>
-        </TouchableOpacity>
+        <View style={styles.headerRight}>
+          <TouchableOpacity
+            onPress={handleToggleFavorite}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={[styles.headerFavoriteIcon, meta.favorite && styles.headerFavoriteActive]}>
+              {meta.favorite ? "\u2605" : "\u2606"}
+            </Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleDelete}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            <Text style={styles.headerDeleteText}>削除</Text>
+          </TouchableOpacity>
+        </View>
       ),
     });
-  }, [navigation, handleDelete]);
+  }, [navigation, handleDelete, handleToggleFavorite, meta.favorite]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener("beforeRemove", () => {
+      saveCommentIfNeeded();
+    });
+    return unsubscribe;
+  }, [navigation, saveCommentIfNeeded]);
 
   const durationMs = status.duration * 1000;
   const currentTimeMs = status.currentTime * 1000;
@@ -180,22 +204,13 @@ const PlaybackScreen = ({ route, navigation }: Props) => {
       </View>
 
       <View style={styles.metaSection}>
-        <View style={styles.favoriteRow}>
-          <Text style={styles.metaLabel}>お気に入り</Text>
-          <TouchableOpacity onPress={handleToggleFavorite}>
-            <Text style={[styles.favoriteIcon, meta.favorite && styles.favoriteActive]}>
-              {meta.favorite ? "\u2605" : "\u2606"}
-            </Text>
-          </TouchableOpacity>
-        </View>
-
         <View style={styles.commentSection}>
           <Text style={styles.metaLabel}>コメント</Text>
           <TextInput
             style={styles.commentInput}
             value={commentDraft}
             onChangeText={setCommentDraft}
-            onBlur={handleCommentBlur}
+            onBlur={saveCommentIfNeeded}
             placeholder="コメントを入力..."
             placeholderTextColor={colors.textMuted}
             multiline
@@ -283,25 +298,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
   },
-  favoriteRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.borderSubtle,
-  },
   metaLabel: {
     fontSize: 14,
     fontWeight: "bold",
     color: colors.textPrimary,
-  },
-  favoriteIcon: {
-    fontSize: 28,
-    color: colors.textMuted,
-  },
-  favoriteActive: {
-    color: colors.accentOrange,
   },
   commentSection: {
     paddingTop: 12,
@@ -319,7 +319,19 @@ const styles = StyleSheet.create({
     borderColor: colors.borderStrong,
   },
   bottomSpacer: {
-    height: 48,
+    height: 80,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 16,
+  },
+  headerFavoriteIcon: {
+    fontSize: 24,
+    color: colors.textMuted,
+  },
+  headerFavoriteActive: {
+    color: colors.accentOrange,
   },
   headerDeleteText: {
     color: colors.accentRed,
