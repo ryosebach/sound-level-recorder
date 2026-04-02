@@ -14,7 +14,7 @@ configureGoogleSignIn();
 export type RootStackParamList = {
   Home: undefined;
   Recordings: undefined;
-  Playback: { uri: string; name: string };
+  Playback: { uri: string; name: string; sessionId: string; segmentId: string };
   Settings: undefined;
   DebugLog: undefined;
 };

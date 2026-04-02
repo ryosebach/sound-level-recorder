@@ -15,6 +15,7 @@ import {
   getSegmentPath,
   writeDecibelCsv,
   generateSessionId,
+  createDefaultMeta,
 } from "@/utils/fileManager";
 import {
   insertDecibelBatch,
@@ -203,6 +204,7 @@ export const useRecorder = (splitIntervalMs: number | null = 21_600_000) => {
     if (oldUri) {
       const currentSessionId = sessionIdRef.current;
       const { segmentId } = moveRecording(oldUri, currentSessionId, oldSegmentStartedAt);
+      createDefaultMeta(currentSessionId, segmentId);
       setSavedFiles((prev) => [...prev, getAudioUri(currentSessionId, segmentId)]);
 
       // Non-blocking: CSV export + cleanup + upload trigger runs in background
@@ -312,6 +314,7 @@ export const useRecorder = (splitIntervalMs: number | null = 21_600_000) => {
       if (uri) {
         const currentSessionId = sessionIdRef.current;
         const { segmentId } = moveRecording(uri, currentSessionId, segStartedAt);
+        createDefaultMeta(currentSessionId, segmentId);
         setSavedFiles((prev) => [...prev, getAudioUri(currentSessionId, segmentId)]);
 
         const csvContent = await exportDecibelCsv(fromIso, toIso);

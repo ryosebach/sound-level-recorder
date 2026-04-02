@@ -2,10 +2,18 @@ import { File, Directory, Paths } from "expo-file-system/next";
 
 const RECORDINGS_DIR = "recordings";
 
+export type SegmentMeta = {
+  favorite: boolean;
+  comment: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type SegmentFile = {
   segmentId: string;
   audioUri: string;
   size: number;
+  meta: SegmentMeta;
 };
 
 export type RecordingSession = {
@@ -70,6 +78,51 @@ export const getCsvUri = (sessionId: string, segmentId: string): string => {
   return new File(getRecordingDir(), sessionId, segmentId, "decibel.csv").uri;
 };
 
+export const getMetaUri = (sessionId: string, segmentId: string): string => {
+  return new File(getRecordingDir(), sessionId, segmentId, "meta.json").uri;
+};
+
+const DEFAULT_META: SegmentMeta = {
+  favorite: false,
+  comment: "",
+  createdAt: "",
+  updatedAt: "",
+};
+
+export const createDefaultMeta = (sessionId: string, segmentId: string): void => {
+  const now = new Date().toISOString();
+  const meta: SegmentMeta = { favorite: false, comment: "", createdAt: now, updatedAt: now };
+  const dest = new File(getRecordingDir(), sessionId, segmentId, "meta.json");
+  dest.write(JSON.stringify(meta));
+};
+
+export const readMeta = (sessionId: string, segmentId: string): SegmentMeta => {
+  const file = new File(getRecordingDir(), sessionId, segmentId, "meta.json");
+  if (!file.exists) return { ...DEFAULT_META };
+  try {
+    return JSON.parse(file.textSync()) as SegmentMeta;
+  } catch {
+    return { ...DEFAULT_META };
+  }
+};
+
+export const writeMeta = (
+  sessionId: string,
+  segmentId: string,
+  updates: Partial<Pick<SegmentMeta, "favorite" | "comment">>,
+): SegmentMeta => {
+  const current = readMeta(sessionId, segmentId);
+  const updated: SegmentMeta = {
+    ...current,
+    ...updates,
+    updatedAt: new Date().toISOString(),
+    createdAt: current.createdAt || new Date().toISOString(),
+  };
+  const dest = new File(getRecordingDir(), sessionId, segmentId, "meta.json");
+  dest.write(JSON.stringify(updated));
+  return updated;
+};
+
 export const getSegmentPath = (sessionId: string, segmentId: string): string => {
   return `${sessionId}/${segmentId}`;
 };
@@ -114,6 +167,7 @@ export const listRecordingSessions = (): RecordingSession[] => {
         segmentId,
         audioUri: audioFile.uri,
         size: audioFile.size ?? 0,
+        meta: readMeta(sessionId, segmentId),
       });
     }
 
