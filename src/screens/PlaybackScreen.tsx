@@ -26,7 +26,6 @@ const PlaybackScreen = ({ route, navigation }: Props) => {
 
   const [meta, setMeta] = useState(() => readMeta(sessionId, segmentId));
   const [commentDraft, setCommentDraft] = useState(meta.comment);
-  const [isEditingComment, setIsEditingComment] = useState(false);
 
   const handleToggleFavorite = useCallback(() => {
     const updated = writeMeta(sessionId, segmentId, { favorite: !meta.favorite });
@@ -34,12 +33,12 @@ const PlaybackScreen = ({ route, navigation }: Props) => {
     triggerMetaUpload(getSegmentPath(sessionId, segmentId));
   }, [sessionId, segmentId, meta.favorite]);
 
-  const handleSaveComment = useCallback(() => {
+  const handleCommentBlur = useCallback(() => {
+    if (commentDraft === meta.comment) return;
     const updated = writeMeta(sessionId, segmentId, { comment: commentDraft });
     setMeta(updated);
-    setIsEditingComment(false);
     triggerMetaUpload(getSegmentPath(sessionId, segmentId));
-  }, [sessionId, segmentId, commentDraft]);
+  }, [sessionId, segmentId, commentDraft, meta.comment]);
 
   const handleDelete = useCallback(() => {
     Alert.alert("セグメントを削除", "このセグメントを削除しますか？", [
@@ -191,47 +190,16 @@ const PlaybackScreen = ({ route, navigation }: Props) => {
         </View>
 
         <View style={styles.commentSection}>
-          <View style={styles.commentHeader}>
-            <Text style={styles.metaLabel}>コメント</Text>
-            {!isEditingComment && (
-              <TouchableOpacity
-                onPress={() => {
-                  setCommentDraft(meta.comment);
-                  setIsEditingComment(true);
-                }}
-              >
-                <Text style={styles.editButton}>編集</Text>
-              </TouchableOpacity>
-            )}
-          </View>
-          {isEditingComment ? (
-            <View>
-              <TextInput
-                style={styles.commentInput}
-                value={commentDraft}
-                onChangeText={setCommentDraft}
-                placeholder="コメントを入力..."
-                placeholderTextColor={colors.textMuted}
-                multiline
-                autoFocus
-              />
-              <View style={styles.commentActions}>
-                <TouchableOpacity
-                  onPress={() => {
-                    setCommentDraft(meta.comment);
-                    setIsEditingComment(false);
-                  }}
-                >
-                  <Text style={styles.cancelButton}>キャンセル</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={handleSaveComment}>
-                  <Text style={styles.saveButton}>保存</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <Text style={styles.commentText}>{meta.comment || "コメントなし"}</Text>
-          )}
+          <Text style={styles.metaLabel}>コメント</Text>
+          <TextInput
+            style={styles.commentInput}
+            value={commentDraft}
+            onChangeText={setCommentDraft}
+            onBlur={handleCommentBlur}
+            placeholder="コメントを入力..."
+            placeholderTextColor={colors.textMuted}
+            multiline
+          />
         </View>
       </View>
     </KeyboardAwareScrollView>
@@ -336,16 +304,7 @@ const styles = StyleSheet.create({
   },
   commentSection: {
     paddingTop: 12,
-  },
-  commentHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  editButton: {
-    fontSize: 14,
-    color: colors.accentBlue,
+    gap: 8,
   },
   commentInput: {
     backgroundColor: colors.bgSecondary,
@@ -357,26 +316,6 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     borderWidth: 1,
     borderColor: colors.borderStrong,
-  },
-  commentActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: 16,
-    marginTop: 8,
-  },
-  cancelButton: {
-    fontSize: 14,
-    color: colors.textMuted,
-  },
-  saveButton: {
-    fontSize: 14,
-    fontWeight: "bold",
-    color: colors.accentBlue,
-  },
-  commentText: {
-    fontSize: 14,
-    color: colors.textSecondary,
-    lineHeight: 20,
   },
   headerDeleteText: {
     color: colors.accentRed,
