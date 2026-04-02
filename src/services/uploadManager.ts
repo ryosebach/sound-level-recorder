@@ -1,5 +1,5 @@
 import NetInfo from "@react-native-community/netinfo";
-import { getRecordingUri } from "@/utils/fileManager";
+import { getAudioUri, getCsvUri } from "@/utils/fileManager";
 import { getGoogleDriveEnabled, getWifiOnlyUpload } from "@/utils/settingsStore";
 import { isSignedIn, getAccessToken } from "@/services/googleAuth";
 import { ensureFolder, uploadMultipart, uploadResumable, fileExists } from "@/services/driveApi";
@@ -43,6 +43,11 @@ const canAutoUpload = async (): Promise<boolean> => {
   return true;
 };
 
+const parseSegmentPath = (segmentPath: string): { sessionId: string; segmentId: string } => {
+  const [sessionId, segmentId] = segmentPath.split("/");
+  return { sessionId, segmentId };
+};
+
 const processPending = async (): Promise<void> => {
   if (isProcessing) return;
   isProcessing = true;
@@ -59,18 +64,31 @@ const processPending = async (): Promise<void> => {
       try {
         markUploading(item.id);
 
+        const { sessionId, segmentId } = parseSegmentPath(item.audio_filename);
         const isAudio = item.file_type === "m4a";
-        const filename = isAudio
-          ? item.audio_filename
-          : item.audio_filename.replace(/\.m4a$/, ".csv");
-        const fileUri = getRecordingUri(filename);
+        const driveFilename = isAudio ? `${segmentId}.m4a` : `${segmentId}.csv`;
+        const fileUri = isAudio
+          ? getAudioUri(sessionId, segmentId)
+          : getCsvUri(sessionId, segmentId);
         const mimeType = isAudio ? "audio/mp4" : "text/csv";
 
         let driveFileId: string;
         if (isAudio) {
-          driveFileId = await uploadResumable(filename, fileUri, mimeType, dateFolderId, token);
+          driveFileId = await uploadResumable(
+            driveFilename,
+            fileUri,
+            mimeType,
+            dateFolderId,
+            token,
+          );
         } else {
-          driveFileId = await uploadMultipart(filename, fileUri, mimeType, dateFolderId, token);
+          driveFileId = await uploadMultipart(
+            driveFilename,
+            fileUri,
+            mimeType,
+            dateFolderId,
+            token,
+          );
         }
 
         markUploaded(item.id, driveFileId);
@@ -88,8 +106,8 @@ export const processUploadQueue = async (): Promise<void> => {
   await processPending();
 };
 
-export const triggerUploadAfterSplit = (audioFilename: string): void => {
-  enqueueRecording(audioFilename);
+export const triggerUploadAfterSplit = (segmentPath: string): void => {
+  enqueueRecording(segmentPath);
   processUploadQueue().catch(() => {});
 };
 
@@ -120,7 +138,7 @@ export const syncDriveStatus = async (): Promise<number> => {
   return resetCount;
 };
 
-export const uploadManual = async (audioFilenames: string[]): Promise<void> => {
+export const uploadManual = async (segmentPaths: string[]): Promise<void> => {
   if (!isSignedIn()) {
     throw new Error("Google アカウントにサインインしてください");
   }
@@ -130,12 +148,12 @@ export const uploadManual = async (audioFilenames: string[]): Promise<void> => {
     throw new Error("ネットワークに接続されていません");
   }
 
-  for (const audioFilename of audioFilenames) {
-    const status = getUploadStatusForFile(audioFilename);
+  for (const segmentPath of segmentPaths) {
+    const status = getUploadStatusForFile(segmentPath);
     if (status === "not_queued") {
-      enqueueRecording(audioFilename);
+      enqueueRecording(segmentPath);
     } else if (status === "failed") {
-      resetForReupload(audioFilename);
+      resetForReupload(segmentPath);
     }
   }
 

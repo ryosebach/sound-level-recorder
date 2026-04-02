@@ -22,9 +22,13 @@ import {
   getManufacturerGuideUrl,
   openManufacturerGuide,
 } from "@/utils/batteryOptimization";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../../App";
 import { useGoogleDrive } from "@/hooks/useGoogleDrive";
 
-const SettingsScreen = () => {
+type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
+
+const SettingsScreen = ({ navigation }: Props) => {
   const [splitInterval, setSplitInterval] = useState<number | null>(getSplitIntervalMs);
   const [storageBytes, setStorageBytes] = useState(0);
   const [batteryOptEnabled, setBatteryOptEnabled] = useState(false);
@@ -129,6 +133,13 @@ const SettingsScreen = () => {
           )}
         </>
       )}
+      <Text style={styles.sectionTitle}>デバッグ</Text>
+      <TouchableOpacity
+        style={[styles.actionButton, styles.secondaryButton]}
+        onPress={() => navigation.navigate("DebugLog")}
+      >
+        <Text style={styles.secondaryButtonText}>デバッグログを表示</Text>
+      </TouchableOpacity>
     </ScrollView>
   );
 };

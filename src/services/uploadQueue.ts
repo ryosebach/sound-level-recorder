@@ -99,6 +99,38 @@ export const getUploadStatusForFile = (audioFilename: string): FileUploadStatus 
   return "pending";
 };
 
+export const getAllUploadStatuses = (): Map<string, FileUploadStatus> => {
+  const rows = db.getAllSync<{ audio_filename: string; status: UploadStatus }>(
+    "SELECT audio_filename, status FROM upload_queue",
+  );
+
+  // Group statuses by audio_filename
+  const grouped = new Map<string, UploadStatus[]>();
+  for (const row of rows) {
+    const list = grouped.get(row.audio_filename);
+    if (list) {
+      list.push(row.status);
+    } else {
+      grouped.set(row.audio_filename, [row.status]);
+    }
+  }
+
+  // Derive aggregate status per file
+  const result = new Map<string, FileUploadStatus>();
+  for (const [filename, statuses] of grouped) {
+    if (statuses.every((s) => s === "uploaded")) {
+      result.set(filename, "uploaded");
+    } else if (statuses.some((s) => s === "uploading")) {
+      result.set(filename, "uploading");
+    } else if (statuses.some((s) => s === "failed")) {
+      result.set(filename, "failed");
+    } else {
+      result.set(filename, "pending");
+    }
+  }
+  return result;
+};
+
 export const getUploadedItems = (): UploadQueueItem[] => {
   return db.getAllSync<UploadQueueItem>(
     "SELECT * FROM upload_queue WHERE status = 'uploaded' AND drive_file_id IS NOT NULL",

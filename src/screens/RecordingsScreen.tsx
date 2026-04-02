@@ -1,25 +1,47 @@
 import { useCallback, useState } from "react";
-import { Alert, FlatList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Alert, SectionList, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../../App";
 import {
-  listRecordings,
-  deleteRecording,
+  listRecordingSessions,
+  deleteSegment,
   deleteAllRecordings,
-  type RecordingFile,
+  getSegmentPath,
+  type SegmentFile,
 } from "@/utils/fileManager";
 import colors from "@/theme/colors";
 import { uploadManual, syncDriveStatus } from "@/services/uploadManager";
-import { getUploadStatusForFile, type FileUploadStatus } from "@/services/uploadQueue";
+import { getAllUploadStatuses, type FileUploadStatus } from "@/services/uploadQueue";
 import { isSignedIn } from "@/services/googleAuth";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Recordings">;
+
+type SectionData = {
+  sessionId: string;
+  totalSize: number;
+  segmentCount: number;
+  data: SegmentFile[];
+};
 
 const formatFileSize = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const formatSessionTitle = (sessionId: string): string => {
+  // "session_2026-03-09_14-30-45" → "2026/03/09 14:30"
+  const match = sessionId.match(/^session_(\d{4})-(\d{2})-(\d{2})_(\d{2})-(\d{2})-(\d{2})$/);
+  if (!match) return sessionId;
+  return `${match[1]}/${match[2]}/${match[3]} ${match[4]}:${match[5]}`;
+};
+
+const formatSegmentTime = (segmentId: string): string => {
+  // "segment_2026-03-09_14-30-45" → "14:30:45"
+  const match = segmentId.match(/_(\d{2})-(\d{2})-(\d{2})$/);
+  if (!match) return segmentId;
+  return `${match[1]}:${match[2]}:${match[3]}`;
 };
 
 const UPLOAD_STATUS_LABELS: Record<FileUploadStatus, string> = {
@@ -39,47 +61,54 @@ const UPLOAD_STATUS_COLORS: Record<FileUploadStatus, string> = {
 };
 
 const RecordingsScreen = ({ navigation }: Props) => {
-  const [files, setFiles] = useState<RecordingFile[]>([]);
-  const [selectedUris, setSelectedUris] = useState<Set<string>>(new Set());
+  const [sections, setSections] = useState<SectionData[]>([]);
+  const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
   const [uploadStatuses, setUploadStatuses] = useState<Map<string, FileUploadStatus>>(new Map());
   const [isUploading, setIsUploading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
 
   const loadFiles = useCallback(() => {
-    const recordings = listRecordings();
-    setFiles(recordings);
-    setSelectedUris(new Set());
-    const statuses = new Map<string, FileUploadStatus>();
-    for (const f of recordings) {
-      statuses.set(f.name, getUploadStatusForFile(f.name));
-    }
-    setUploadStatuses(statuses);
+    const sessions = listRecordingSessions();
+    const newSections: SectionData[] = sessions.map((s) => ({
+      sessionId: s.sessionId,
+      totalSize: s.segments.reduce((sum, seg) => sum + seg.size, 0),
+      segmentCount: s.segments.length,
+      data: s.segments,
+    }));
+    setSections(newSections);
+    setSelectedKeys(new Set());
+    setUploadStatuses(getAllUploadStatuses());
   }, []);
 
   useFocusEffect(loadFiles);
 
-  const toggleSelection = (uri: string) => {
-    setSelectedUris((prev) => {
+  const getSegmentKey = (sessionId: string, segmentId: string): string => {
+    return getSegmentPath(sessionId, segmentId);
+  };
+
+  const toggleSelection = (key: string) => {
+    setSelectedKeys((prev) => {
       const next = new Set(prev);
-      if (next.has(uri)) {
-        next.delete(uri);
+      if (next.has(key)) {
+        next.delete(key);
       } else {
-        next.add(uri);
+        next.add(key);
       }
       return next;
     });
   };
 
   const handleDeleteSelected = () => {
-    if (selectedUris.size === 0) return;
-    Alert.alert("選択したファイルを削除", `${selectedUris.size} 件のファイルを削除しますか？`, [
+    if (selectedKeys.size === 0) return;
+    Alert.alert("選択したセグメントを削除", `${selectedKeys.size} 件のセグメントを削除しますか？`, [
       { text: "キャンセル", style: "cancel" },
       {
         text: "削除",
         style: "destructive",
         onPress: () => {
-          for (const uri of selectedUris) {
-            deleteRecording(uri);
+          for (const key of selectedKeys) {
+            const [sessionId, segmentId] = key.split("/");
+            deleteSegment(sessionId, segmentId);
           }
           loadFiles();
         },
@@ -88,8 +117,9 @@ const RecordingsScreen = ({ navigation }: Props) => {
   };
 
   const handleDeleteAll = () => {
-    if (files.length === 0) return;
-    Alert.alert("全件削除", `${files.length} 件のファイルをすべて削除しますか？`, [
+    const totalSegments = sections.reduce((sum, s) => sum + s.segmentCount, 0);
+    if (totalSegments === 0) return;
+    Alert.alert("全件削除", `${totalSegments} 件のセグメントをすべて削除しますか？`, [
       { text: "キャンセル", style: "cancel" },
       {
         text: "全件削除",
@@ -103,15 +133,15 @@ const RecordingsScreen = ({ navigation }: Props) => {
   };
 
   const handleUploadSelected = async () => {
-    if (selectedUris.size === 0) return;
+    if (selectedKeys.size === 0) return;
     if (!isSignedIn()) {
       Alert.alert("サインインが必要", "設定画面から Google アカウントにサインインしてください");
       return;
     }
     setIsUploading(true);
     try {
-      const audioFilenames = files.filter((f) => selectedUris.has(f.uri)).map((f) => f.name);
-      await uploadManual(audioFilenames);
+      const segmentPaths = [...selectedKeys];
+      await uploadManual(segmentPaths);
       loadFiles();
     } catch (e) {
       Alert.alert("アップロードエラー", e instanceof Error ? e.message : "不明なエラー");
@@ -144,28 +174,38 @@ const RecordingsScreen = ({ navigation }: Props) => {
     }
   };
 
-  const handleRowPress = (item: RecordingFile) => {
-    navigation.navigate("Playback", { uri: item.uri, name: item.name });
+  const handleRowPress = (sessionId: string, item: SegmentFile) => {
+    navigation.navigate("Playback", { uri: item.audioUri, name: item.segmentId });
   };
 
-  const renderItem = ({ item }: { item: RecordingFile }) => {
-    const isSelected = selectedUris.has(item.uri);
-    const uploadStatus = uploadStatuses.get(item.name) ?? "not_queued";
+  const renderSectionHeader = ({ section }: { section: SectionData }) => (
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionTitle}>{formatSessionTitle(section.sessionId)} 開始</Text>
+      <Text style={styles.sectionMeta}>
+        {section.segmentCount} セグメント / {formatFileSize(section.totalSize)}
+      </Text>
+    </View>
+  );
+
+  const renderItem = ({ item, section }: { item: SegmentFile; section: SectionData }) => {
+    const key = getSegmentKey(section.sessionId, item.segmentId);
+    const isSelected = selectedKeys.has(key);
+    const uploadStatus = uploadStatuses.get(key) ?? "not_queued";
     return (
       <TouchableOpacity
         style={[styles.row, isSelected && styles.rowSelected]}
-        onPress={() => handleRowPress(item)}
+        onPress={() => handleRowPress(section.sessionId, item)}
       >
         <TouchableOpacity
           style={styles.checkbox}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          onPress={() => toggleSelection(item.uri)}
+          onPress={() => toggleSelection(key)}
         >
           {isSelected && <View style={styles.checkboxInner} />}
         </TouchableOpacity>
         <View style={styles.fileInfo}>
           <Text style={styles.fileName} numberOfLines={1}>
-            {item.name}
+            {formatSegmentTime(item.segmentId)}
           </Text>
           <View style={styles.fileMetaRow}>
             <Text style={styles.fileMeta}>{formatFileSize(item.size)}</Text>
@@ -179,6 +219,8 @@ const RecordingsScreen = ({ navigation }: Props) => {
       </TouchableOpacity>
     );
   };
+
+  const totalSegments = sections.reduce((sum, s) => sum + s.segmentCount, 0);
 
   return (
     <View style={styles.container}>
@@ -195,48 +237,49 @@ const RecordingsScreen = ({ navigation }: Props) => {
           style={[
             styles.toolbarButton,
             styles.uploadButton,
-            (selectedUris.size === 0 || isUploading) && styles.buttonDisabled,
+            (selectedKeys.size === 0 || isUploading) && styles.buttonDisabled,
           ]}
           onPress={handleUploadSelected}
-          disabled={selectedUris.size === 0 || isUploading}
+          disabled={selectedKeys.size === 0 || isUploading}
         >
           <Text style={styles.toolbarButtonText}>
-            {isUploading ? "アップロード中..." : `アップロード (${selectedUris.size})`}
+            {isUploading ? "アップロード中..." : `アップロード (${selectedKeys.size})`}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
             styles.toolbarButton,
             styles.deleteButton,
-            selectedUris.size === 0 && styles.buttonDisabled,
+            selectedKeys.size === 0 && styles.buttonDisabled,
           ]}
           onPress={handleDeleteSelected}
-          disabled={selectedUris.size === 0}
+          disabled={selectedKeys.size === 0}
         >
-          <Text style={styles.toolbarButtonText}>削除 ({selectedUris.size})</Text>
+          <Text style={styles.toolbarButtonText}>削除 ({selectedKeys.size})</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[
             styles.toolbarButton,
             styles.deleteAllButton,
-            files.length === 0 && styles.buttonDisabled,
+            totalSegments === 0 && styles.buttonDisabled,
           ]}
           onPress={handleDeleteAll}
-          disabled={files.length === 0}
+          disabled={totalSegments === 0}
         >
           <Text style={styles.toolbarButtonText}>全件削除</Text>
         </TouchableOpacity>
       </View>
 
-      {files.length === 0 ? (
+      {totalSegments === 0 ? (
         <View style={styles.emptyContainer}>
           <Text style={styles.emptyText}>録音ファイルがありません</Text>
         </View>
       ) : (
-        <FlatList
-          data={files}
-          keyExtractor={(item) => item.uri}
+        <SectionList
+          sections={sections}
+          keyExtractor={(item, index) => item.segmentId + index}
           renderItem={renderItem}
+          renderSectionHeader={renderSectionHeader}
           contentContainerStyle={styles.list}
           ListFooterComponent={
             <View style={styles.listFooter}>
@@ -296,10 +339,28 @@ const styles = StyleSheet.create({
   list: {
     paddingVertical: 8,
   },
+  sectionHeader: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: colors.bgSecondary,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.borderSubtle,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: "bold",
+    color: colors.textPrimary,
+  },
+  sectionMeta: {
+    fontSize: 12,
+    color: colors.textMuted,
+    marginTop: 2,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 16,
+    paddingLeft: 32,
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderBottomColor: colors.borderSubtle,
