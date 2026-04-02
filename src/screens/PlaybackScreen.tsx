@@ -202,6 +202,7 @@ const PlaybackScreen = ({ route, navigation }: Props) => {
           />
         </View>
       </View>
+      <View style={styles.bottomSpacer} />
     </KeyboardAwareScrollView>
   );
 };
@@ -316,6 +317,9 @@ const styles = StyleSheet.create({
     textAlignVertical: "top",
     borderWidth: 1,
     borderColor: colors.borderStrong,
+  },
+  bottomSpacer: {
+    height: 48,
   },
   headerDeleteText: {
     color: colors.accentRed,
